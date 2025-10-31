@@ -140,7 +140,7 @@ This allows:
 export CHATOPS_API_KEY="your-key-here"
 
 # Health check
-curl http://whitebox.ts.net:8000/healthz
+curl http://whitebox.bombay-porgy.ts.net:8000/healthz
 
 # Execute intent (scale)
 curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
@@ -149,7 +149,7 @@ curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
   -d '{"name": "scale_stack_media"}'
 
 # Execute intent (rollout)
-curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
+ curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
   -H "X-API-Key: $CHATOPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "rollout_stack_ai"}'
@@ -175,8 +175,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:automation
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
       
       - name: Trigger rollout
         run: |

@@ -136,7 +136,7 @@ All quality gates passing:
 scrape_configs:
   - job_name: 'chatops'
     static_configs:
-      - targets: ['whitebox.ts.net:8000']
+  - targets: ['whitebox.bombay-porgy.ts.net:8000']
     metrics_path: '/metrics'
     scrape_interval: 15s
 ```
@@ -150,7 +150,7 @@ Key panels:
 
 ### GitHub Actions Secrets Required
 - `TS_OAUTH_CLIENT_ID` - Tailscale OAuth client ID
-- `TS_OAUTH_SECRET` - Tailscale OAuth secret
+- `TS_OAUTH_CLIENT_SECRET` - Tailscale OAuth client secret
 - `CHATOPS_API_KEY` - ChatOps API key
 - `DISCORD_DEPLOYMENT_WEBHOOK` - Discord webhook for deployment notifications (optional)
 

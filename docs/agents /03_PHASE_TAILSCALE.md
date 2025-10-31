@@ -11,4 +11,4 @@
 1) Install and start `tailscaled` on nodes.
 2) `tailscale up --auth-key=<key> --hostname=$(hostname)` on each.
 3) Configure advertised routes and (optional) exit node.
-4) Approve routes in admin; verify `ping redbox.ts.net`.
+4) Approve routes in admin; verify `ping redbox.bombay-porgy.ts.net`.

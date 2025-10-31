@@ -43,7 +43,7 @@ Successfully completed the infrastructure integration phase (Day 7+) of the Chat
 
 9. ✅ **Deployment runbook** (Item 8)
    - Created comprehensive `docs/CHATOPS_DEPLOYMENT.md`:
-     - Step-by-step installation to whitebox.ts.net
+  - Step-by-step installation to whitebox.bombay-porgy.ts.net
      - Systemd service unit with hardening (NoNewPrivileges, PrivateTmp, ProtectSystem)
      - Tailscale ACL configuration for secure access
      - GitHub Actions integration example with Tailscale

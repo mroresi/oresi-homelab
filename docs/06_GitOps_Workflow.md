@@ -178,12 +178,12 @@ services:
 ## 6.6 🧩 Integration with Tailscale & MagicDNS
 - Each VM should register its hostname (auto via `tailscale up --hostname=$(hostname)`).
 - Example:
-  - `whitebox.ts.net` → Dockge
-  - `redbox.ts.net` → Media stack
-  - `bloodbox.ts.net` → AI stack
+  - `whitebox.bombay-porgy.ts.net` → Dockge
+  - `redbox.bombay-porgy.ts.net` → Media stack
+  - `bloodbox.bombay-porgy.ts.net` → AI stack
 - Access remotely via MagicDNS:
-  - `https://dockge.whitebox.ts.net:5001`
-  - `https://radarr.redbox.ts.net:7878`
+  - `https://dockge.whitebox.bombay-porgy.ts.net:5001`
+  - `https://radarr.redbox.bombay-porgy.ts.net:7878`
 
 ---
 

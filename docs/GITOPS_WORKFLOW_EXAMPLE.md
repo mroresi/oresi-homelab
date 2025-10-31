@@ -145,8 +145,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:automation
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
       
       - name: Wait for Tailscale connection
         run: |
@@ -158,7 +157,7 @@ jobs:
       
       - name: Trigger ChatOps rollout
         run: |
-          response=$(curl -X POST http://whitebox.ts.net:8000/run \
+          response=$(curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
             -H "X-API-Key: ${{ secrets.CHATOPS_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"name": "rollout_stack_media"}' \
@@ -271,7 +270,7 @@ git push origin main
 
 ### Option 3: Direct SSH rollback (emergency)
 ```bash
-ssh whitebox.ts.net
+ssh whitebox.bombay-porgy.ts.net
 cd /opt/stacks/stack-media
 git checkout HEAD~1 -- docker-compose.yml
 docker compose up -d --force-recreate plex
@@ -291,7 +290,7 @@ docker logs -f stack-media_plex_1
 curl -s http://uptime-kuma.ts.net:3001/api/badge/1/status | jq .
 
 # Watch ChatOps logs
-ssh whitebox.ts.net sudo journalctl -u chatops.service -f
+ssh whitebox.bombay-porgy.ts.net sudo journalctl -u chatops.service -f
 ```
 
 ### Success criteria:

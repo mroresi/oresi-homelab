@@ -153,7 +153,7 @@ In **Tailscale Admin → DNS → MagicDNS**, enable:
 Then you can resolve nodes like:
 
 ```bash
-ping redbox.ts.net
+ping redbox.bombay-porgy.ts.net
 ping blackbox.ts.net
 ```
 
@@ -183,7 +183,7 @@ tailscale up --advertise-exit-node --ssh
 From your laptop or Mac Mini:
 
 ```bash
-tailscale set --exit-node=redbox.ts.net --exit-node-allow-lan-access=true
+tailscale set --exit-node=redbox.bombay-porgy.ts.net --exit-node-allow-lan-access=true
 ```
 
 ---
@@ -253,7 +253,7 @@ tailscale up --reset
 | Start service | `systemctl enable --now tailscaled` |
 | Connect node | `tailscale up --auth-key=<key> --ssh` |
 | List peers | `tailscale status` |
-| Ping peer | `tailscale ping redbox.ts.net` |
+| Ping peer | `tailscale ping redbox.bombay-porgy.ts.net` |
 | Exit node enable | `tailscale up --advertise-exit-node` |
 | Subnet routing | `tailscale up --advertise-routes=192.168.0.0/24` |
 | Reset connection | `tailscale logout && tailscale up --reset` |
