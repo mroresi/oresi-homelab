@@ -79,9 +79,9 @@ jobs:
       - name: Install Tailscale
         uses: tailscale/github-action@v2
         with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-
 
       - name: Wait for Tailscale connection
         run: |

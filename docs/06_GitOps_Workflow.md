@@ -1,4 +1,5 @@
 # 🧩 ORESI // SYSTEMS — Section 6: GitOps Workflow & Dockge Management
+
 **Version:** 1.0 • **Date:** 2025-10-29  
 **Applies to:** whitebox, redbox, bloodbox  
 **Linked System:** blackbox (Synology NAS)  
@@ -9,6 +10,7 @@
 ## 6.0 🔍 Design Intent
 
 Your homelab should be:  
+
 - 🌀 **Stateless at compute level** — everything can be rebuilt via Git.  
 - 💾 **Persistent at data level** — all app configs and databases live on NFS.  
 - 📡 **Accessible anywhere** — every VM joins the Tailscale mesh.  
@@ -42,6 +44,7 @@ Each stack represents a **functional domain** (Infra, Media, Content, AI, SmartH
 ```
 
 ### `.gitignore`
+
 ```bash
 # Ignore all .env files and secrets
 **/.env
@@ -50,6 +53,7 @@ Each stack represents a **functional domain** (Infra, Media, Content, AI, SmartH
 ```
 
 ### Example `.env.template`
+
 ```bash
 TZ=America/Vancouver
 PUID=1000
@@ -64,12 +68,14 @@ DOWNLOAD_PATH=/srv/downloads
 ## 6.2 🪄 Bootstrapping GitOps on Each VM
 
 ### Step 1 — Install Core Tools
+
 ```bash
 sudo apt update && sudo apt install -y git docker.io docker-compose tailscale
 sudo systemctl enable docker
 ```
 
 ### Step 2 — Clone Config Repository
+
 ```bash
 sudo mkdir -p /opt/stacks
 sudo chown -R $USER:$USER /opt/stacks
@@ -78,6 +84,7 @@ git clone https://github.com/YOUR_USERNAME/my-homelab-configs.git .
 ```
 
 ### Step 3 — Enable Auto-Sync (Optional)
+
 ```bash
 # Pull updates from git hourly
 echo "0 * * * * cd /opt/stacks && git pull" | sudo tee /etc/cron.d/gitops-sync
@@ -89,6 +96,7 @@ sudo systemctl restart cron
 ## 6.3 🧭 Deploy Dockge (Container Stack Manager)
 
 ### Create Dockge Compose File `/opt/stacks/stack-infra/docker-compose.yml`
+
 ```yaml
 version: "3.9"
 services:
@@ -109,12 +117,14 @@ services:
 ```
 
 ### Start Dockge
+
 ```bash
 cd /opt/stacks/stack-infra
 docker compose up -d
 ```
+
 Access via:  
-🌐 http://192.168.0.101:5001 or http://whitebox.local:5001
+🌐 <http://192.168.0.101:5001> or <http://whitebox.local:5001>
 
 Dockge will autodiscover other stacks from `/opt/stacks/*/docker-compose.yml`.
 
@@ -128,6 +138,7 @@ docker compose up -d
 ```
 
 ### Example Compose (Simplified)
+
 ```yaml
 version: "3.9"
 services:
@@ -176,6 +187,7 @@ services:
 ---
 
 ## 6.6 🧩 Integration with Tailscale & MagicDNS
+
 - Each VM should register its hostname (auto via `tailscale up --hostname=$(hostname)`).
 - Example:
   - `whitebox.bombay-porgy.ts.net` → Dockge
@@ -190,6 +202,7 @@ services:
 ## 6.7 🔄 Updating Stacks
 
 ### Manual Update
+
 ```bash
 cd /opt/stacks
 git pull
@@ -198,7 +211,9 @@ docker compose up -d
 ```
 
 ### Automated (Watchtower)
+
 Add this service to `stack-infra/docker-compose.yml`:
+
 ```yaml
 watchtower:
   image: containrrr/watchtower
@@ -217,10 +232,13 @@ watchtower:
 - Run `git commit` + `git push` after any change in Docker YAMLs.
 - Monitor all stack health from **Dockge → Overview Dashboard**.
 - Log errors with:
+
   ```bash
   docker compose logs --tail 100 -f
   ```
+
 - Re-deploy a full stack from scratch:
+
   ```bash
   docker compose down -v
   docker compose up -d

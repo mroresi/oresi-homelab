@@ -43,15 +43,16 @@ Successfully completed the infrastructure integration phase (Day 7+) of the Chat
 
 9. ✅ **Deployment runbook** (Item 8)
    - Created comprehensive `docs/CHATOPS_DEPLOYMENT.md`:
-  - Step-by-step installation to whitebox.bombay-porgy.ts.net
-     - Systemd service unit with hardening (NoNewPrivileges, PrivateTmp, ProtectSystem)
-     - Tailscale ACL configuration for secure access
-     - GitHub Actions integration example with Tailscale
-     - Uptime Kuma monitoring setup
-     - Maintenance procedures (updates, key rotation, new intents)
-     - Security hardening recommendations
-     - Troubleshooting guide with common issues
-     - Complete deployment checklist
+
+- Step-by-step installation to whitebox.bombay-porgy.ts.net
+  - Systemd service unit with hardening (NoNewPrivileges, PrivateTmp, ProtectSystem)
+  - Tailscale ACL configuration for secure access
+  - GitHub Actions integration example with Tailscale
+  - Uptime Kuma monitoring setup
+  - Maintenance procedures (updates, key rotation, new intents)
+  - Security hardening recommendations
+  - Troubleshooting guide with common issues
+  - Complete deployment checklist
 
 10. ✅ **Intent schema validation CI** (Item 9)
     - Created `.github/workflows/validate-intents.yml`

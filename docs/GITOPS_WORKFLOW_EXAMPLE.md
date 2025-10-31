@@ -21,6 +21,7 @@ This guide demonstrates the complete workflow from code change to automated depl
 ### Step 1: Developer makes change
 
 **Branch and edit:**
+
 ```bash
 git checkout -b update-plex-image
 cd stacks/stack-media
@@ -28,6 +29,7 @@ nano docker-compose.yml
 ```
 
 **Change in `docker-compose.yml`:**
+
 ```yaml
 services:
   plex:
@@ -38,12 +40,14 @@ services:
 ### Step 2: Update intent file
 
 **Edit intent:**
+
 ```bash
 cd ../../chatops/intents
 nano rollout_stack_media.yaml
 ```
 
 **Add comment documenting change:**
+
 ```yaml
 # Rollout Media Stack - Plex Update
 # Purpose: Deploy Plex 1.40.5.8897 with subtitle rendering fixes
@@ -67,6 +71,7 @@ git push origin update-plex-image
 ```
 
 **Create PR on GitHub with description:**
+
 ```markdown
 ## Update Plex Container
 
@@ -92,11 +97,13 @@ git push origin update-plex-image
 ### Step 4: CI validates intent
 
 **GitHub Actions runs automatically:**
+
 - ✅ Lint/type/test (`ci.yml`)
 - ✅ Validate intent schema (`validate-intents.yml`)
 - ✅ Security scans (Trivy, Bandit)
 
 **Example output from `validate-intents.yml`:**
+
 ```
 Validating 6 intent files...
   ✓ rollout_stack_media.yaml (doc 1/1): rollout on stack-media
@@ -106,12 +113,14 @@ Validating 6 intent files...
 ### Step 5: Human approval
 
 **Reviewer checks:**
+
 1. Image tag matches tested version
 2. Intent file correctly references new compose
 3. Checklist items completed
 4. CI passes
 
 **Approve PR and add label:**
+
 - Label: `approved-by-gemini` (matches `label_required` in intent)
 
 ### Step 6: Merge PR
@@ -191,6 +200,7 @@ jobs:
 ### Step 8: ChatOps executes rollout
 
 **ChatOps service logs (JSON):**
+
 ```json
 {
   "name": "root",
@@ -207,6 +217,7 @@ jobs:
 ```
 
 **Docker output:**
+
 ```
 Pulling plex ... done
 Recreating stack-media_plex_1 ... done
@@ -215,6 +226,7 @@ Recreating stack-media_plex_1 ... done
 ### Step 9: Discord alert confirms deployment
 
 **Discord message:**
+
 ```
 🤖 ChatOps Audit
 ✅ SUCCESS: rollout on stack stack-media (intent: rollout_stack_media)
@@ -224,12 +236,14 @@ Today at 10:30 PM
 ### Step 10: Uptime Kuma verifies health
 
 **Uptime Kuma monitor:**
+
 - Check: `Plex Media Server`
 - URL: `http://192.168.0.41:32400/web`
 - Status: 🟢 UP (200 OK)
 - Last check: 30s ago
 
 **Discord notification (from Uptime Kuma):**
+
 ```
 ✅ [Plex Media Server] is UP
 Response time: 45ms
@@ -241,6 +255,7 @@ Today at 10:31 PM
 If deployment fails or introduces issues:
 
 ### Option 1: Revert PR
+
 ```bash
 git revert <commit-hash>
 git push origin main
@@ -248,6 +263,7 @@ git push origin main
 ```
 
 ### Option 2: Manual rollback via ChatOps
+
 ```bash
 # Create emergency rollback intent
 cat > chatops/intents/rollback_plex.yaml << 'EOF'
@@ -269,6 +285,7 @@ git push origin main
 ```
 
 ### Option 3: Direct SSH rollback (emergency)
+
 ```bash
 ssh whitebox.bombay-porgy.ts.net
 cd /opt/stacks/stack-media
@@ -278,7 +295,8 @@ docker compose up -d --force-recreate plex
 
 ## Monitoring During Rollout
 
-### Real-time monitoring commands:
+### Real-time monitoring commands
+
 ```bash
 # Watch Docker events
 docker events --filter type=container --filter container=plex
@@ -293,7 +311,8 @@ curl -s http://uptime-kuma.ts.net:3001/api/badge/1/status | jq .
 ssh whitebox.bombay-porgy.ts.net sudo journalctl -u chatops.service -f
 ```
 
-### Success criteria:
+### Success criteria
+
 - ✅ Docker pull completes without errors
 - ✅ Container recreates and enters "running" state
 - ✅ Plex web UI responds within 60 seconds
@@ -312,23 +331,28 @@ ssh whitebox.bombay-porgy.ts.net sudo journalctl -u chatops.service -f
 
 ## Extending the Workflow
 
-### Multi-stack deployments:
+### Multi-stack deployments
+
 Use multi-document YAML intent (`rollout_all_stacks.yaml`) to deploy multiple stacks in sequence.
 
-### Canary deployments:
+### Canary deployments
+
 1. Scale new version to 1 replica
 2. Wait for health checks
 3. Scale to full replicas if healthy
 
-### Scheduled maintenance:
+### Scheduled maintenance
+
 Use GitHub Actions scheduled workflows:
+
 ```yaml
 on:
   schedule:
     - cron: '0 2 * * 0'  # Weekly Sunday 2 AM
 ```
 
-### Blue-green deployments:
+### Blue-green deployments
+
 1. Deploy to "blue" environment
 2. Validate health and smoke tests
 3. Switch traffic via Nginx Proxy Manager
@@ -337,6 +361,7 @@ on:
 ---
 
 **Key Takeaways:**
+
 - Every deployment is auditable via Git history
 - CI validates changes before human approval
 - Automation happens only after explicit approval (label + merge)
