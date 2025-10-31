@@ -13,6 +13,7 @@ theme: auto
 ---
 
 ## 🗺️ Table of Contents
+
 1. [Hardware Inventory](#hardware-inventory)
 2. [Network Topology](#network-topology)
 3. [Storage Infrastructure](#storage-infrastructure)
@@ -39,6 +40,7 @@ theme: auto
 ## 2. 🌐 Network Topology
 
 **Physical Network**
+
 ```
 +-------------+          +-------------+          +-------------+
 |  Whitebox   |──vmbr0──>|   Switch    |──LAN────>|  Blackbox   |
@@ -55,8 +57,9 @@ theme: auto
 ```
 
 **Tailscale Mesh Overlay**
+
 ```
-Whitebox.ts.net <──> Redbox.ts.net <──> Bloodbox.ts.net
+whitebox.bombay-porgy.ts.net <──> redbox.bombay-porgy.ts.net <──> bloodbox.bombay-porgy.ts.net
        │                      │                    │
        └─────── Blackbox.ts.net ──────── MacMini.ts.net
 ```
@@ -66,6 +69,7 @@ Whitebox.ts.net <──> Redbox.ts.net <──> Bloodbox.ts.net
 ## 3. 💾 Storage Infrastructure
 
 **NAS Export Table**
+
 | Share | NFS Path | Purpose |
 |--------|-----------|---------|
 | docker_data | `/volume2/data/docker_data` | All persistent app data |
@@ -74,6 +78,7 @@ Whitebox.ts.net <──> Redbox.ts.net <──> Bloodbox.ts.net
 | backups | `/volume2/data/backups` | VM + config backups |
 
 Mounted into VMs under `/srv/` or `/mnt/`:
+
 ```
 /srv/
 ├── media/
@@ -111,12 +116,14 @@ Mounted into VMs under `/srv/` or `/mnt/`:
 ## 6. 🔗 Synology Mount Strategy
 
 **Mount via /etc/fstab:**
+
 ```bash
 sudo mkdir -p /srv/media /srv/downloads /srv/backups /srv/docker_data
 sudo nano /etc/fstab
 ```
 
 Add:
+
 ```
 blackbox.ts.net:/volume2/data/media       /srv/media       nfs  defaults,nofail  0  0
 blackbox.ts.net:/volume2/data/downloads   /srv/downloads   nfs  defaults,nofail  0  0
@@ -125,6 +132,7 @@ blackbox.ts.net:/volume2/data/docker_data /srv/docker_data nfs  defaults,nofail 
 ```
 
 Then:
+
 ```bash
 sudo mount -a && df -h | grep /srv/
 ```

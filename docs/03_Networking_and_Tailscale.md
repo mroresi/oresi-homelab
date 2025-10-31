@@ -63,9 +63,9 @@ It provides:
 
 | Node | Role | LAN IP | Tailscale Name | Notes |
 |------|------|--------|----------------|-------|
-| 🟥 **redbox** | Media Host (Proxmox) | 192.168.0.100 | redbox.ts.net | Advertises 192.168.0.0/24 |
-| ⬜ **whitebox** | Core Host (Proxmox) | 192.168.0.101 | whitebox.ts.net | Cluster leader |
-| 🩸 **bloodbox** | Compute Host | 192.168.0.103 | bloodbox.ts.net | AI and GPU workloads |
+| 🟥 **redbox** | Media Host (Proxmox) | 192.168.0.100 | redbox.bombay-porgy.ts.net | Advertises 192.168.0.0/24 |
+| ⬜ **whitebox** | Core Host (Proxmox) | 192.168.0.101 | whitebox.bombay-porgy.ts.net | Cluster leader |
+| 🩸 **bloodbox** | Compute Host | 192.168.0.103 | bloodbox.bombay-porgy.ts.net | AI and GPU workloads |
 | ⚫ **blackbox** | Synology NAS | 192.168.0.40 | blackbox.ts.net | Data + NFS shares |
 | 🍏 **Mac Mini M4** | AI Assistant | 192.168.0.53 | macmini.ts.net | Ollama + OpenWebUI |
 | 💻 **Mac Mini Intel** | Utility | TBD | minibox.ts.net | Zigbee / Home Assistant |
