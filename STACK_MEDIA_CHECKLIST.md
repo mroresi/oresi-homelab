@@ -16,3 +16,4 @@ Manage Plex, Sonarr, Radarr, Prowlarr, and Transmission stacks.
 **Maintenance**
 - Weekly container updates through Watchtower.
 - Verify DB backups stored in `/srv/backups/media/`.
+- Add Uptime Kuma check for Plex port 32400
