@@ -179,7 +179,7 @@ jobs:
       
       - name: Trigger rollout
         run: |
-          curl -X POST http://whitebox.ts.net:8000/run \
+          curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
             -H "X-API-Key: ${{ secrets.CHATOPS_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"name": "rollout_stack_media"}'
