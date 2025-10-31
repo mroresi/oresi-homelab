@@ -1,0 +1,2 @@
+label_required: approved-by-gemini
+command: "docker compose -f /opt/stacks/stack-media/docker-compose.yml up -d --scale plex=2"
