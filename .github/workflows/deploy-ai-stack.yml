@@ -27,6 +27,12 @@ jobs:
 
       - name: Validate stack configuration
         run: |
+          # Skip validation on manual dispatch (stacks may live outside this repo)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ℹ️  Skipping stack validation on manual dispatch"
+            exit 0
+          fi
+
           if [ ! -f "stacks/stack-ai/docker-compose.yml" ]; then
             echo "❌ docker-compose.yml not found"
             exit 1
