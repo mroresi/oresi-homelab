@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Tailscale credentials
+      - name: Verify Tailscale credentials presence
         env:
           TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
@@ -70,19 +70,12 @@ jobs:
           have_authkey=0
           if [ -n "$TAILSCALE_AUTHKEY" ]; then have_authkey=1; fi
 
-          if [ $have_oauth -eq 1 ]; then
-            echo "✅ Found Tailscale OAuth client credentials"
-          fi
-          if [ $have_authkey -eq 1 ]; then
-            echo "✅ Found Tailscale auth key (fallback)"
-          fi
           if [ $have_oauth -eq 0 ] && [ $have_authkey -eq 0 ]; then
-            echo "❌ Missing Tailscale credentials. Configure either:"
-            echo "- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)"
-            echo "- or TAILSCALE_AUTHKEY (fallback)"
+            echo "❌ No Tailscale credentials provided. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2
             exit 1
           fi
-          echo "✅ Tailscale credentials check passed"
+          if [ $have_oauth -eq 1 ]; then echo "✅ OAuth client detected"; fi
+          if [ $have_authkey -eq 1 ]; then echo "✅ Auth key detected (fallback available)"; fi
 
       - name: Detect Tailscale credentials
         id: tscreds
@@ -106,7 +99,6 @@ jobs:
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          version: 1.66.3
 
       - name: Install Tailscale (Authkey fallback)
         if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey == '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey == '1') }}
