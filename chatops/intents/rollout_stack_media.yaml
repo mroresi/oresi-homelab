@@ -1,0 +1,11 @@
+# Rollout Media Stack - Plex Update
+# Purpose: Deploy updated Plex container with new features/fixes
+# Stack: stack-media (Plex, Sonarr, Radarr, Prowlarr, Transmission)
+# Reference: STACK_MEDIA_CHECKLIST.md
+# Post-deploy: Verify Plex :32400 responds and Uptime Kuma check passes
+
+label_required: approved-by-gemini
+action: rollout
+stack: stack-media
+service: plex
+compose: "/opt/stacks/stack-media/docker-compose.yml"

@@ -71,8 +71,14 @@ Access → 🌐 http://192.168.0.101:3001
 | Ping | 192.168.0.40 | Synology status |
 | TCP | 22 @ whitebox | SSH reachable |
 | Docker Container | qBittorrent | via Docker integration |
+| HTTP | http://chatops.whitebox.ts.net:8000/healthz | ChatOps health endpoint (200 OK) |
 
 **Notifications:** connect Discord Webhook or Telegram Bot.  
+
+### ChatOps observability notes
+- Protect ChatOps behind Tailscale or a reverse proxy. Prefer MagicDNS (e.g., `chatops.whitebox.ts.net`).
+- Add the HTTP check to `/healthz` with 60s interval and 10s timeout.
+- Consider adding a keyword check for `{"status":"ok"}` for extra assurance.
 
 ---
 

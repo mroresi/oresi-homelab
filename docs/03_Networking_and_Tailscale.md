@@ -6,7 +6,9 @@ author: "ORESI"
 theme: auto
 ---
 
+<!-- markdownlint-disable MD025 -->
 # 🌐 Networking & Tailscale Configuration
+<!-- markdownlint-enable MD025 -->
 
 > ⚙️ The backbone of **secure, zero-trust networking** for your homelab — connecting every node seamlessly through encrypted peer-to-peer links.
 
@@ -14,16 +16,16 @@ theme: auto
 
 ## 🗺️ Table of Contents
 
-1. [Overview](#1-overview)
-2. [Network Design](#2-network-design)
-3. [Installation Steps](#3-installation-steps)
-4. [Advanced Configuration](#4-advanced-configuration)
-5. [Verification & Troubleshooting](#5-verification--troubleshooting)
-6. [Cheatsheet](#6-cheatsheet)
+1. [Overview](#overview)
+2. [Network Design](#network-design)
+3. [Installation Steps](#installation-steps)
+4. [Advanced Configuration](#advanced-configuration)
+5. [Verification & Troubleshooting](#verification--troubleshooting)
+6. [Cheatsheet](#cheatsheet)
 
 ---
 
-## 1. 🌍 Overview
+## Overview
 
 **Tailscale** is the secure overlay network connecting all your nodes across Proxmox, Synology, and macOS.  
 It provides:
@@ -36,7 +38,7 @@ It provides:
 
 ### Architecture Diagram
 
-```
+```text
                      ┌────────────────────────────────┐
                      │        Tailscale Mesh VPN       │
                      └────────────────────────────────┘
@@ -57,7 +59,7 @@ It provides:
 
 ---
 
-## 2. 🧩 Network Design
+## Network Design
 
 | Node | Role | LAN IP | Tailscale Name | Notes |
 |------|------|--------|----------------|-------|
@@ -70,13 +72,13 @@ It provides:
 
 ---
 
-## 3. ⚙️ Installation Steps
+## Installation Steps
 
 ### 🧠 Phase 1 — Create Auth Key
+
 From [https://login.tailscale.com/admin/settings/keys](https://login.tailscale.com/admin/settings/keys):
 
 ```bash
-# Generate a reusable server auth key
 tskey-auth-XXXXXXXXXXXXXX
 ```
 
@@ -90,7 +92,6 @@ tskey-auth-XXXXXXXXXXXXXX
 apt update && apt install -y tailscale
 systemctl enable --now tailscaled
 
-# Authenticate & advertise local subnet
 tailscale up --auth-key=tskey-auth-XXXXXXXXXXXXXX   --hostname=$(hostname)   --advertise-exit-node   --advertise-routes=192.168.0.0/24   --ssh
 ```
 
@@ -100,12 +101,14 @@ tailscale up --auth-key=tskey-auth-XXXXXXXXXXXXXX   --hostname=$(hostname)   --a
 
 ### ⚫ Synology (blackbox)
 
-**Option 1: Synology Package Center**
+#### Option 1: Synology Package Center
+
 1. Search for **Tailscale** → Install.
 2. Login via browser popup.
 3. In the Tailscale admin panel, mark it as a **subnet router**.
 
-**Option 2: Docker**
+#### Option 2: Docker
+
 ```bash
 docker run -d --name=tailscale   --net=host   --privileged   -v /var/lib/tailscale:/var/lib/tailscale   tailscale/tailscale tailscaled
 ```
@@ -113,12 +116,15 @@ docker run -d --name=tailscale   --net=host   --privileged   -v /var/lib/tailsca
 ---
 
 ### 🍏 Mac Mini (M4 & Intel)
-#### macOS GUI:
+
+#### macOS GUI
+
 1. Install from [https://tailscale.com/download](https://tailscale.com/download)
 2. Login with your account.
 3. Enable **“Allow LAN access”** and **“Use as Exit Node”** if desired.
 
-#### macOS CLI:
+#### macOS CLI
+
 ```bash
 sudo tailscale up --ssh --accept-routes
 ```
@@ -135,15 +141,18 @@ tailscale up --auth-key=tskey-auth-XXXXXXXXXXXXXX --ssh --hostname=$(hostname)
 
 ---
 
-## 4. 🧠 Advanced Configuration
+## Advanced Configuration
 
 ### 🔮 MagicDNS
+
 In **Tailscale Admin → DNS → MagicDNS**, enable:
+
 - ✅ MagicDNS
 - ✅ Split DNS for local domains
 
 Then you can resolve nodes like:
-```
+
+```bash
 ping redbox.ts.net
 ping blackbox.ts.net
 ```
@@ -153,6 +162,7 @@ ping blackbox.ts.net
 ### 🌉 Subnet Routing
 
 Enable routing from redbox to your internal network:
+
 ```bash
 tailscale up --advertise-routes=192.168.0.0/24 --accept-dns=false
 ```
@@ -165,11 +175,13 @@ Approve in the admin console:
 ### 🚪 Exit Node (for remote access)
 
 Designate redbox as the exit node:
+
 ```bash
 tailscale up --advertise-exit-node --ssh
 ```
 
 From your laptop or Mac Mini:
+
 ```bash
 tailscale set --exit-node=redbox.ts.net --exit-node-allow-lan-access=true
 ```
@@ -179,6 +191,7 @@ tailscale set --exit-node=redbox.ts.net --exit-node-allow-lan-access=true
 ### 🔐 Access Control Lists (ACLs)
 
 Example policy snippet (`tailscale.json`):
+
 ```json
 {
   "acls": [
@@ -194,9 +207,10 @@ Upload via [Tailscale Admin → Access Controls](https://login.tailscale.com/adm
 
 ---
 
-## 5. 🧰 Verification & Troubleshooting
+## Verification & Troubleshooting
 
 ### Check Status
+
 ```bash
 tailscale status
 tailscale ip
@@ -204,21 +218,25 @@ tailscale ping <hostname>
 ```
 
 ### Restart Service
+
 ```bash
 systemctl restart tailscaled
 ```
 
 ### Logs
+
 ```bash
 journalctl -u tailscaled -n 100 --no-pager
 ```
 
 ### Re-authenticate
+
 ```bash
 tailscale up --reset
 ```
 
 ### Common Fixes
+
 | Problem | Fix |
 |----------|-----|
 | “Permission denied” on routes | Re-authenticate with `sudo tailscale up --advertise-routes` |
@@ -227,11 +245,11 @@ tailscale up --reset
 
 ---
 
-## 6. 📜 Cheatsheet
+## Cheatsheet
 
 | Task | Command |
 |------|----------|
-| Install on Linux | `curl -fsSL https://tailscale.com/install.sh | sh` |
+| Install on Linux | `curl -fsSL https://tailscale.com/install.sh \| sh` |
 | Start service | `systemctl enable --now tailscaled` |
 | Connect node | `tailscale up --auth-key=<key> --ssh` |
 | List peers | `tailscale status` |

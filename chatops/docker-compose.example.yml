@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  chatops:
+    image: ghcr.io/mroresi/oresi-chatops:main
+    container_name: oresi-chatops
+    ports:
+      - "8000:8000"
+    environment:
+      - CHATOPS_API_KEY=${CHATOPS_API_KEY}
+      # - CHATOPS_IP_ALLOWLIST=100.64.0.0/10
+      # - APPROVED_LABEL=approved-by-gemini
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./intents:/app/intents:ro
+    restart: unless-stopped

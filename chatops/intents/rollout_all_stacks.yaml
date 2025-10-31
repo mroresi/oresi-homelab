@@ -1,0 +1,20 @@
+# Rollout All Stacks - Full Cluster Update
+# Purpose: Coordinated rollout across all stacks after OS/kernel update
+# Stack: stack-ai, stack-media, stack-content (multi-stack operation)
+# Warning: This will sequentially restart all services - expect brief downtime
+# Reference: STACK_*_CHECKLIST.md files
+
+label_required: approved-by-gemini
+action: rollout
+stack: stack-ai
+compose: "/opt/stacks/stack-ai/docker-compose.yml"
+---
+label_required: approved-by-gemini
+action: rollout
+stack: stack-media
+compose: "/opt/stacks/stack-media/docker-compose.yml"
+---
+label_required: approved-by-gemini
+action: rollout
+stack: stack-content
+compose: "/opt/stacks/stack-content/docker-compose.yml"

@@ -1,0 +1,36 @@
+{
+    "monitors": [
+        {
+            "name": "ChatOps Healthcheck",
+            "type": "http",
+            "url": "http://chatops.whitebox.ts.net:8000/healthz",
+            "method": "GET",
+            "interval": 60,
+            "retryInterval": 60,
+            "resendInterval": 0,
+            "maxRetries": 3,
+            "upsideDown": false,
+            "notificationIDList": {},
+            "ignoreTls": false,
+            "expiryNotification": false,
+            "maxredirects": 10,
+            "accepted_statuscodes": [
+                "200"
+            ],
+            "proxyId": null,
+            "description": "ChatOps /healthz endpoint should return {\"status\":\"ok\"} with HTTP 200",
+            "keyword": "ok",
+            "active": true
+        }
+    ],
+    "notificationList": [
+        {
+            "name": "Discord ChatOps Alerts",
+            "type": "discord",
+            "isDefault": false,
+            "discordWebhookUrl": "REPLACE_WITH_YOUR_DISCORD_WEBHOOK_URL",
+            "discordUsername": "Uptime Kuma",
+            "active": true
+        }
+    ]
+}

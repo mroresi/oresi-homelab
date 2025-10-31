@@ -41,3 +41,27 @@ Maintain consistent and traceable releases across stacks using Git tags and Dock
 ## Notes
 - Never edit live containers manually; all updates go through Git.
 - Keep CHANGELOG.md at repo root for release summaries.
+
+---
+
+## ChatOps Service Release (GHCR)
+
+The ChatOps microservice container is built automatically and published to GitHub Container Registry (GHCR).
+
+1. Merge to `main` or push a tag `vX.Y.Z`.
+2. GitHub Actions will build and push:
+   - `ghcr.io/<owner>/oresi-chatops:main` (for branch)
+   - `ghcr.io/<owner>/oresi-chatops:<git-sha>` (for commit)
+   - `ghcr.io/<owner>/oresi-chatops:vX.Y.Z` (for tags)
+3. Deploy with Docker Compose:
+   ```bash
+   # example
+   docker pull ghcr.io/<owner>/oresi-chatops:vX.Y.Z
+   docker compose -f chatops/docker-compose.example.yml up -d
+   ```
+4. Healthcheck: `/healthz` should return `{status: ok}`; container should report healthy.
+
+Security notes:
+- Set `CHATOPS_API_KEY` and (optionally) `CHATOPS_IP_ALLOWLIST` in environment.
+- Mount `chatops/intents` read-only into the container.
+- Keep service behind Tailscale or a reverse proxy with IP allowlist.

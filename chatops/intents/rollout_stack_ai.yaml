@@ -1,0 +1,10 @@
+# Rollout AI Stack - Ollama + OpenWebUI Update
+# Purpose: Deploy updated Ollama and OpenWebUI containers
+# Stack: stack-ai (GPU-enabled AI inference services)
+# Reference: STACK_AI_CHECKLIST.md
+# Post-deploy: Verify Ollama :11434 responds and GPU passthrough working
+
+label_required: approved-by-gemini
+action: rollout
+stack: stack-ai
+compose: "/opt/stacks/stack-ai/docker-compose.yml"

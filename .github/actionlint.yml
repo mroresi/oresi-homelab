@@ -1,0 +1,9 @@
+# Actionlint configuration for oresi-homelab workflows
+secrets:
+  - TS_OAUTH_CLIENT_ID
+  - TS_OAUTH_SECRET
+  - CHATOPS_API_KEY
+  - DISCORD_DEPLOYMENT_WEBHOOK
+  - TAILSCALE_OAUTH_CLIENT_ID
+  - TAILSCALE_OAUTH_SECRET
+  - TAILSCALE_AUTHKEY

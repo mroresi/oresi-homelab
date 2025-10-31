@@ -1,0 +1,13 @@
+# Backup Plex Database
+# Purpose: Dump Plex SQLite database before major updates
+# Stack: stack-media
+# Reference: STACK_MEDIA_CHECKLIST.md
+# Post-backup: Verify .tar.gz file exists in backup directory
+
+label_required: approved-by-gemini
+action: backup
+database_type: plex
+source_container: stack-media_plex_1
+source_path: "/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases"
+destination: /srv/backups/media/plex/
+retention_days: 30

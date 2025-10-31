@@ -1,0 +1,18 @@
+# Backup Docker Volumes to NAS
+# Purpose: Rsync Docker volumes to Synology NAS for disaster recovery
+# Stack: backup
+# Reference: docs/09_Backup_Recovery.md
+# Post-backup: Verify files on NAS at /volume1/backups/docker-volumes/
+
+label_required: approved-by-gemini
+action: backup
+source: /var/lib/docker/volumes
+destination: rsync://192.168.0.40/backups/docker-volumes
+exclude:
+  - "_data/cache"
+  - "_data/tmp"
+options:
+  - "--archive"
+  - "--compress"
+  - "--delete"
+  - "--verbose"

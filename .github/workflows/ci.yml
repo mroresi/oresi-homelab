@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  chatops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r chatops/requirements.txt
+      - name: Lint (ruff)
+        run: |
+          ruff check chatops
+      - name: Type check (mypy)
+        run: |
+          mypy --install-types --non-interactive chatops
+      - name: Tests (pytest)
+        env:
+          CHATOPS_API_KEY: testkey
+        run: |
+          pytest -q chatops
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run actionlint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint -no-color -config-file .actionlint

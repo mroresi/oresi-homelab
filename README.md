@@ -1,5 +1,9 @@
 # 🧠 ORESI Homelab
 
+![CI](https://github.com/mroresi/oresi-homelab/actions/workflows/ci.yml/badge.svg?branch=main)
+[![Deploy Media Stack](https://github.com/mroresi/oresi-homelab/actions/workflows/deploy-media-stack.yml/badge.svg?branch=main)](https://github.com/mroresi/oresi-homelab/actions/workflows/deploy-media-stack.yml)
+[![Deploy AI Stack](https://github.com/mroresi/oresi-homelab/actions/workflows/deploy-ai-stack.yml/badge.svg?branch=main)](https://github.com/mroresi/oresi-homelab/actions/workflows/deploy-ai-stack.yml)
+
 Welcome to the ORESI Homelab — a fully documented, GitOps-driven environment for self-hosted infrastructure, automation, and observability.
 
 This repository is structured to serve both **humans** and **AI agents**.  
@@ -7,7 +11,7 @@ Humans use it as a technical handbook; agents use it as an executable runbook th
 
 ## Repository Structure
 
-```
+```text
 /docs/
   01_Vision_Overview.md
   02_Hardware_Architecture.md
@@ -21,6 +25,7 @@ Humans use it as a technical handbook; agents use it as an executable runbook th
   /agents/
     (AI operational files)
 ```
+
 ## Philosophy
 
 **Infrastructure as Documentation** — every operational action, from provisioning to backup, exists as markdown.  
@@ -29,9 +34,11 @@ Humans use it as a technical handbook; agents use it as an executable runbook th
 **Observability & Resilience** — no black boxes, no silent failures.
 
 ## For Humans
+
 Follow `/docs/agents/` phases manually or with automation. Each file contains ordered steps with validation gates.
 
 ## For AI Agents
+
 Use `docs/agents/00_SYSTEM_PROMPT.md` as your system message.  
 Run the numbered phases sequentially, referencing the core docs for inputs. Stop on missing data — never invent.
 
@@ -42,13 +49,15 @@ git clone https://github.com/<your-org>/oresi-homelab.git
 cd oresi-homelab/docs/agents
 cat 01_PHASE_VISION.md
 ```
+
 or for agents:
 
-```
+```text
 SYSTEM_PROMPT = contents of 00_SYSTEM_PROMPT.md
 ```
 
 ## License
+
 All documentation © ORESI Homelab contributors — usable for education or personal infra.
 
-*"Every reliable system starts as a well-written markdown file."*
+> "Every reliable system starts as a well-written markdown file."

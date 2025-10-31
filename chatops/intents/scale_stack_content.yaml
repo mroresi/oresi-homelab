@@ -1,0 +1,11 @@
+# Scale Content Stack - Nextcloud Workers
+# Purpose: Scale Nextcloud PHP-FPM workers for high traffic
+# Stack: stack-content (Nextcloud, NPM, Calibre-web)
+# Reference: STACK_CONTENT_CHECKLIST.md
+
+label_required: approved-by-gemini
+action: scale
+stack: stack-content
+service: nextcloud
+replicas: 3
+compose: "/opt/stacks/stack-content/docker-compose.yml"

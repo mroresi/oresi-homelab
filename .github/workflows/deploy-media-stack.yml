@@ -1,0 +1,235 @@
+name: Deploy Media Stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stacks/stack-media/**"
+      - "chatops/intents/rollout_stack_media.yaml"
+      - "chatops/intents/scale_stack_media.yaml"
+
+  workflow_dispatch:
+    inputs:
+      intent:
+        description: "Intent to execute"
+        required: true
+        default: "rollout_stack_media"
+        type: choice
+        options:
+          - rollout_stack_media
+          - scale_stack_media
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate stack configuration
+        run: |
+          if [ ! -f "stacks/stack-media/docker-compose.yml" ]; then
+            echo "❌ docker-compose.yml not found"
+            exit 1
+          fi
+
+          # Basic YAML syntax check
+          python3 -c "import yaml; yaml.safe_load(open('stacks/stack-media/docker-compose.yml'))"
+          echo "✅ Stack configuration is valid"
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          if [ -z "$TS_OAUTH_CLIENT_ID" ]; then
+            echo "❌ Missing required secret: TS_OAUTH_CLIENT_ID"
+            echo "Please add Tailscale OAuth credentials to GitHub Secrets"
+            exit 1
+          fi
+          if [ -z "$TS_OAUTH_SECRET" ]; then
+            echo "❌ Missing required secret: TS_OAUTH_SECRET"
+            echo "Please add Tailscale OAuth credentials to GitHub Secrets"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
+      - name: Install Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:automation
+
+      - name: Wait for Tailscale connection
+        run: |
+          echo "Waiting for Tailscale mesh connection..."
+          timeout=30
+          elapsed=0
+
+          until tailscale status | grep -q "whitebox"; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "❌ Timeout waiting for Tailscale connection"
+              tailscale status
+              exit 1
+            fi
+            echo "Waiting... ($elapsed/$timeout seconds)"
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+
+          echo "✅ Tailscale connected"
+          tailscale status
+
+      - name: Health check ChatOps service
+        run: |
+          if ! curl -fsS --connect-timeout 10 http://whitebox.ts.net:8000/healthz; then
+            echo "❌ ChatOps service is not healthy"
+            exit 1
+          fi
+          echo "✅ ChatOps service is healthy"
+
+      - name: Determine intent
+        id: intent
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INTENT="${{ github.event.inputs.intent }}"
+          else
+            INTENT="rollout_stack_media"
+          fi
+          echo "intent=$INTENT" >> $GITHUB_OUTPUT
+          echo "📋 Will execute intent: $INTENT"
+
+      - name: Trigger ChatOps deployment
+        id: deploy
+        env:
+          CHATOPS_API_KEY: ${{ secrets.CHATOPS_API_KEY }}
+        run: |
+          INTENT="${{ steps.intent.outputs.intent }}"
+
+          echo "🚀 Triggering ChatOps: $INTENT"
+
+          response=$(curl -X POST http://whitebox.ts.net:8000/run \
+            -H "X-API-Key: $CHATOPS_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"$INTENT\"}" \
+            -w "\n%{http_code}" \
+            -s -o response.json)
+
+          http_code=$(echo "$response" | tail -n1)
+
+          echo "📊 HTTP Status: $http_code"
+
+          if [ -f response.json ]; then
+            echo "📄 Response:"
+            cat response.json | jq . || cat response.json
+          fi
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ ChatOps deployment failed with status $http_code"
+            exit 1
+          fi
+
+          echo "✅ ChatOps deployment triggered successfully"
+
+      - name: Wait for stack stabilization
+        run: |
+          echo "⏳ Waiting 30 seconds for containers to stabilize..."
+          sleep 30
+
+      - name: Post-deploy validation
+        run: |
+          echo "🔍 Validating deployed services..."
+
+          # Check Plex
+          if ! curl -fsS --connect-timeout 10 http://192.168.0.41:32400/web/index.html > /dev/null; then
+            echo "⚠️  Plex web UI check failed (may need authentication)"
+          else
+            echo "✅ Plex is responding"
+          fi
+
+          # Check if Docker containers are running (via SSH)
+          # Note: This requires SSH key or agent forwarding
+          # For now, we rely on ChatOps success and Uptime Kuma monitoring
+
+          echo "✅ Post-deploy validation complete"
+          echo "📊 Check Uptime Kuma for detailed health status"
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "Stack: stack-media"
+          echo "Intent: ${{ steps.intent.outputs.intent }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check logs above for details"
+          echo "Rollback may be required"
+
+  notify-discord:
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_DEPLOYMENT_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+        run: |
+          if [ -z "$DISCORD_DEPLOYMENT_WEBHOOK" ]; then
+            echo "ℹ️  Discord webhook not configured, skipping notification"
+            exit 0
+          fi
+
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            COLOR=3066993  # Green
+            TITLE="✅ Media Stack Deployed"
+            DESC="Successfully deployed stack-media to production"
+          else
+            COLOR=15158332  # Red
+            TITLE="❌ Media Stack Deployment Failed"
+            DESC="Deployment failed. Check GitHub Actions logs for details."
+          fi
+
+          COMMIT="\`${{ github.sha }}\`"
+          BRANCH="\`${{ github.ref_name }}\`"
+          ACTOR="${{ github.actor }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Build payload with jq to avoid YAML parsing confusion
+          jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --arg commit "$COMMIT" \
+            --arg branch "$BRANCH" \
+            --arg actor "$ACTOR" \
+            --arg url "$RUN_URL" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  description: $desc,
+                  color: $color,
+                  fields: [
+                    {name: "Commit", value: $commit, inline: true},
+                    {name: "Branch", value: $branch, inline: true},
+                    {name: "Actor", value: $actor, inline: true}
+                  ],
+                  url: $url
+                }
+              ]
+            }' > payload.json
+
+          curl -sS -X POST "$DISCORD_DEPLOYMENT_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            --data @payload.json

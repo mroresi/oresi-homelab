@@ -1,0 +1,7 @@
+# Full stack rollout with content and media dependencies
+label_required: approved-by-gemini
+action: rollout
+stack: stack-full
+depends_on:
+  - rollout_stack_content
+  - rollout_stack_media

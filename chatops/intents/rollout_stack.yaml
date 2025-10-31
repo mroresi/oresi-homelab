@@ -1,0 +1,4 @@
+label_required: approved-by-gemini
+action: rollout
+stack: stack-media
+compose: "/opt/stacks/stack-media/docker-compose.yml"

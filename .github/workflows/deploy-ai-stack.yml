@@ -1,0 +1,261 @@
+name: Deploy AI Stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stacks/stack-ai/**"
+      - "chatops/intents/rollout_stack_ai.yaml"
+      - "chatops/intents/scale_stack_ai.yaml"
+
+  workflow_dispatch:
+    inputs:
+      intent:
+        description: "Intent to execute"
+        required: true
+        default: "rollout_stack_ai"
+        type: choice
+        options:
+          - rollout_stack_ai
+          - scale_stack_ai
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate stack configuration
+        run: |
+          if [ ! -f "stacks/stack-ai/docker-compose.yml" ]; then
+            echo "❌ docker-compose.yml not found"
+            exit 1
+          fi
+
+          # Basic YAML syntax check
+          python3 -c "import yaml; yaml.safe_load(open('stacks/stack-ai/docker-compose.yml'))"
+          echo "✅ Stack configuration is valid"
+
+      - name: Check GPU requirements
+        run: |
+          echo "🔍 Checking AI stack GPU requirements..."
+          if grep -q "runtime: nvidia" stacks/stack-ai/docker-compose.yml; then
+            echo "✅ NVIDIA runtime configured"
+          fi
+
+          if grep -q "device_ids" stacks/stack-ai/docker-compose.yml; then
+            echo "✅ GPU device IDs specified"
+          fi
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          if [ -z "$TS_OAUTH_CLIENT_ID" ]; then
+            echo "❌ Missing required secret: TS_OAUTH_CLIENT_ID"
+            echo "Please add Tailscale OAuth credentials to GitHub Secrets"
+            exit 1
+          fi
+          if [ -z "$TS_OAUTH_SECRET" ]; then
+            echo "❌ Missing required secret: TS_OAUTH_SECRET"
+            echo "Please add Tailscale OAuth credentials to GitHub Secrets"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
+      - name: Install Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:automation
+
+      - name: Wait for Tailscale connection
+        run: |
+          echo "Waiting for Tailscale mesh connection..."
+          timeout=30
+          elapsed=0
+
+          until tailscale status | grep -q "whitebox"; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "❌ Timeout waiting for Tailscale connection"
+              tailscale status
+              exit 1
+            fi
+            echo "Waiting... ($elapsed/$timeout seconds)"
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+
+          echo "✅ Tailscale connected"
+          tailscale status
+
+      - name: Health check ChatOps service
+        run: |
+          if ! curl -fsS --connect-timeout 10 http://whitebox.ts.net:8000/healthz; then
+            echo "❌ ChatOps service is not healthy"
+            exit 1
+          fi
+          echo "✅ ChatOps service is healthy"
+
+      - name: Determine intent
+        id: intent
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INTENT="${{ github.event.inputs.intent }}"
+          else
+            INTENT="rollout_stack_ai"
+          fi
+          echo "intent=$INTENT" >> $GITHUB_OUTPUT
+          echo "📋 Will execute intent: $INTENT"
+
+      - name: Pre-deploy GPU check
+        run: |
+          echo "🎮 Verifying GPU availability on target node..."
+          # Note: This would require SSH access or API call to Proxmox
+          echo "⚠️  Manual verification recommended for GPU passthrough"
+
+      - name: Trigger ChatOps deployment
+        id: deploy
+        env:
+          CHATOPS_API_KEY: ${{ secrets.CHATOPS_API_KEY }}
+        run: |
+          INTENT="${{ steps.intent.outputs.intent }}"
+
+          echo "🚀 Triggering ChatOps: $INTENT"
+
+          response=$(curl -X POST http://whitebox.ts.net:8000/run \
+            -H "X-API-Key: $CHATOPS_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"$INTENT\"}" \
+            -w "\n%{http_code}" \
+            -s -o response.json)
+
+          http_code=$(echo "$response" | tail -n1)
+
+          echo "📊 HTTP Status: $http_code"
+
+          if [ -f response.json ]; then
+            echo "📄 Response:"
+            cat response.json | jq . || cat response.json
+          fi
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ ChatOps deployment failed with status $http_code"
+            exit 1
+          fi
+
+          echo "✅ ChatOps deployment triggered successfully"
+
+      - name: Wait for AI services stabilization
+        run: |
+          echo "⏳ Waiting 60 seconds for AI containers to stabilize (model loading)..."
+          sleep 60
+
+      - name: Post-deploy validation
+        run: |
+          echo "🔍 Validating deployed AI services..."
+
+          # Check Ollama API
+          if ! curl -fsS --connect-timeout 10 http://192.168.0.102:11434/api/tags > /dev/null 2>&1; then
+            echo "⚠️  Ollama API check failed (may still be loading models)"
+          else
+            echo "✅ Ollama is responding"
+            curl -s http://192.168.0.102:11434/api/tags | jq '.models[].name' || true
+          fi
+
+          # Check GPU utilization (if nvidia-smi accessible)
+          echo "📊 Note: Check GPU utilization via Proxmox console or nvidia-smi"
+
+          echo "✅ Post-deploy validation complete"
+          echo "📊 Verify via monitoring dashboards"
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🎉 AI Stack deployment successful!"
+          echo "Stack: stack-ai"
+          echo "Intent: ${{ steps.intent.outputs.intent }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "📝 Post-deployment checklist:"
+          echo "- [ ] Verify Ollama responds at :11434"
+          echo "- [ ] Check GPU passthrough working (nvidia-smi)"
+          echo "- [ ] Test model inference"
+          echo "- [ ] Verify disk usage under threshold"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ AI Stack deployment failed!"
+          echo "Check logs above for details"
+          echo "Common issues:"
+          echo "- GPU passthrough not configured"
+          echo "- Insufficient VRAM"
+          echo "- Model files missing"
+          echo "- NFS mount issues (/srv/ai_data)"
+
+  notify-discord:
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "ℹ️  Discord webhook not configured, skipping notification"
+            exit 0
+          fi
+
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            COLOR=5814783  # Purple (AI theme)
+            TITLE="🤖 AI Stack Deployed"
+            DESC="Successfully deployed stack-ai with GPU support"
+          else
+            COLOR=15158332  # Red
+            TITLE="❌ AI Stack Deployment Failed"
+            DESC="Deployment failed. Check GitHub Actions logs for details."
+          fi
+
+          COMMIT="\`${{ github.sha }}\`"
+          ACTOR="${{ github.actor }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Build payload with jq to avoid YAML parsing confusion
+          jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --arg commit "$COMMIT" \
+            --arg actor "$ACTOR" \
+            --arg url "$RUN_URL" \
+            --arg services "Ollama, OpenWebUI, Stable Diffusion" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  description: $desc,
+                  color: $color,
+                  fields: [
+                    {name: "Services", value: $services, inline: true},
+                    {name: "Commit", value: $commit, inline: true},
+                    {name: "Actor", value: $actor, inline: true}
+                  ],
+                  url: $url
+                }
+              ]
+            }' > payload.json
+
+          curl -sS -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            --data @payload.json

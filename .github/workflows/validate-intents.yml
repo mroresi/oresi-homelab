@@ -1,0 +1,98 @@
+name: Validate Intents
+
+on:
+  pull_request:
+    paths:
+      - 'chatops/intents/**/*.yaml'
+      - 'chatops/main.py'  # Re-validate if schema changes
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install pydantic pyyaml
+      
+      - name: Validate intent schemas
+        run: |
+          python3 << 'EOF'
+          import sys
+          import yaml
+          from pathlib import Path
+          from pydantic import BaseModel, ValidationError
+          from typing import Literal, Optional
+          
+          # Import Intent schema from chatops.main
+          class Intent(BaseModel):
+              label_required: str
+              action: Literal["scale", "rollout"]
+              stack: str
+              service: Optional[str] = None
+              replicas: Optional[int] = None
+              compose: Optional[str] = None
+          
+          errors = []
+          intent_dir = Path("chatops/intents")
+          
+          if not intent_dir.exists():
+              print("✗ Intent directory not found: chatops/intents")
+              sys.exit(1)
+          
+          yaml_files = list(intent_dir.glob("*.yaml"))
+          if not yaml_files:
+              print("✗ No intent YAML files found in chatops/intents/")
+              sys.exit(1)
+          
+          print(f"Validating {len(yaml_files)} intent files...")
+          
+          for yaml_file in yaml_files:
+              try:
+                  with open(yaml_file) as f:
+                      # Support multi-document YAML (---) for batch intents
+                      docs = list(yaml.safe_load_all(f))
+                      
+                      if not docs:
+                          errors.append(f"{yaml_file.name}: Empty YAML file")
+                          continue
+                      
+                      for idx, doc in enumerate(docs, 1):
+                          if doc is None:
+                              errors.append(f"{yaml_file.name} (doc {idx}): Empty document")
+                              continue
+                          
+                          try:
+                              intent = Intent(**doc)
+                              
+                              # Additional validation: scale requires service + replicas
+                              if intent.action == "scale":
+                                  if not intent.service:
+                                      errors.append(f"{yaml_file.name} (doc {idx}): action=scale requires 'service' field")
+                                  if intent.replicas is None:
+                                      errors.append(f"{yaml_file.name} (doc {idx}): action=scale requires 'replicas' field")
+                              
+                              print(f"  ✓ {yaml_file.name} (doc {idx}/{len(docs)}): {intent.action} on {intent.stack}")
+                          
+                          except ValidationError as e:
+                              errors.append(f"{yaml_file.name} (doc {idx}): {e}")
+              
+              except yaml.YAMLError as e:
+                  errors.append(f"{yaml_file.name}: YAML parsing error: {e}")
+              except Exception as e:
+                  errors.append(f"{yaml_file.name}: Unexpected error: {e}")
+          
+          if errors:
+              print("\n❌ Validation failed:")
+              for err in errors:
+                  print(f"  - {err}")
+              sys.exit(1)
+          else:
+              print(f"\n✅ All {len(yaml_files)} intent files are valid!")
+          EOF
