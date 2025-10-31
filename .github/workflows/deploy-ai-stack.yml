@@ -92,19 +92,21 @@ jobs:
 
       - name: Install Tailscale (OAuth)
         if: ${{ steps.tscreds.outputs.have_oauth == '1' }}
+        id: tsoauth
+        continue-on-error: true
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
 
       - name: Install Tailscale (Authkey fallback)
-        if: ${{ steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey == '1' }}
+        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey == '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey == '1') }}
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
       - name: Require Tailscale credentials
-        if: ${{ steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey != '1' }}
+        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey != '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey != '1') }}
         run: |
           echo "❌ Missing Tailscale credentials. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2
           exit 1
