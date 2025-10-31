@@ -56,15 +56,15 @@ jobs:
       - name: Verify required secrets
         env:
           TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
         run: |
           if [ -z "$TS_OAUTH_CLIENT_ID" ]; then
             echo "❌ Missing required secret: TS_OAUTH_CLIENT_ID"
             echo "Please add Tailscale OAuth credentials to GitHub Secrets"
             exit 1
           fi
-          if [ -z "$TS_OAUTH_SECRET" ]; then
-            echo "❌ Missing required secret: TS_OAUTH_SECRET"
+          if [ -z "$TS_OAUTH_CLIENT_SECRET" ]; then
+            echo "❌ Missing required secret: TS_OAUTH_CLIENT_SECRET"
             echo "Please add Tailscale OAuth credentials to GitHub Secrets"
             exit 1
           fi
@@ -74,7 +74,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:automation
 
       - name: Wait for Tailscale connection

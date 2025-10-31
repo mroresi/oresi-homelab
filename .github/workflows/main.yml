@@ -1,1 +1,10 @@
+name: CI (Meta)
 
+on:
+    workflow_dispatch:
+
+jobs:
+    noop:
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo "No-op workflow file to satisfy actionlint"
