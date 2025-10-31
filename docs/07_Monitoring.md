@@ -1,4 +1,5 @@
 # 🧠 ORESI // SYSTEMS — Section 7: Monitoring, Observability & Alerting
+
 **Version:** 1.0  •  **Date:** 2025-10-29  
 **Applies to:** whitebox (.101), redbox (.100), bloodbox (.103)  
 **Linked Systems:** blackbox (.40 Synology NFS) + Tailscale Mesh  
@@ -7,11 +8,13 @@
 ---
 
 ## 7.0 🎯 Design Intent
+
 Monitoring should:  
+
 - 🩺 Detect failures within 60 seconds.  
 - 📈 Track CPU / RAM / I/O usage for each VM and container.  
 - 🚨 Send alerts through Discord or Telegram.  
-- 🌎 Be accessible via Tailscale MagicDNS (e.g., kuma.whitebox.ts.net).  
+- 🌎 Be accessible via Tailscale MagicDNS (e.g., whitebox.bombay-porgy.ts.net).  
 - 💾 Store logs and metrics on Synology for retention and backups.
 
 ---
@@ -39,8 +42,8 @@ Monitoring should:
         └─ NFS Backups / Metrics archive
 
         Dash Access:
-        • http://kuma.whitebox.ts.net:3001
-        • http://netdata.redbox.ts.net:19999
+  • http://whitebox.bombay-porgy.ts.net:3001
+  • http://redbox.bombay-porgy.ts.net:19999
 ─────────────────────────────────────────────────────────────
 ```
 
@@ -49,6 +52,7 @@ Monitoring should:
 ## 7.2 🚦 Uptime Kuma (whitebox)
 
 ### Compose snippet (`/opt/stacks/stack-infra/docker-compose.yml`)
+
 ```yaml
 uptimekuma:
   image: louislam/uptime-kuma:latest
@@ -62,21 +66,23 @@ uptimekuma:
     - TZ=America/Vancouver
 ```
 
-Access → 🌐 http://192.168.0.101:3001  
+Access → 🌐 <http://192.168.0.101:3001>  
 
 **Checks to add:**
+
 | Type | Target | Notes |
 |------|---------|-------|
-| HTTP | http://radarr.redbox.ts.net:7878 | Radarr availability |
+| HTTP | <http://redbox.bombay-porgy.ts.net:7878> | Radarr availability |
 | Ping | 192.168.0.40 | Synology status |
 | TCP | 22 @ whitebox | SSH reachable |
 | Docker Container | qBittorrent | via Docker integration |
-| HTTP | http://chatops.whitebox.ts.net:8000/healthz | ChatOps health endpoint (200 OK) |
+| HTTP | <http://whitebox.bombay-porgy.ts.net:8000/healthz> | ChatOps health endpoint (200 OK) |
 
 **Notifications:** connect Discord Webhook or Telegram Bot.  
 
 ### ChatOps observability notes
-- Protect ChatOps behind Tailscale or a reverse proxy. Prefer MagicDNS (e.g., `chatops.whitebox.ts.net`).
+
+- Protect ChatOps behind Tailscale or a reverse proxy. Prefer MagicDNS (e.g., `whitebox.bombay-porgy.ts.net`).
 - Add the HTTP check to `/healthz` with 60s interval and 10s timeout.
 - Consider adding a keyword check for `{"status":"ok"}` for extra assurance.
 
@@ -85,10 +91,12 @@ Access → 🌐 http://192.168.0.101:3001
 ## 7.3 📊 Glances (Node Dashboard)
 
 ### Install on each VM
+
 ```bash
 sudo apt install -y glances python3-pip
 sudo glances -w &
 ```
+
 WebUI: `http://<vm-ip>:61208`
 
 **Add reverse proxy in Dockge** to expose through MagicDNS for secure access.  
@@ -98,6 +106,7 @@ WebUI: `http://<vm-ip>:61208`
 ## 7.4 📡 Netdata (Advanced Monitoring)
 
 ### Docker Compose on redbox
+
 ```yaml
 netdata:
   image: netdata/netdata:latest
@@ -117,7 +126,7 @@ netdata:
   restart: unless-stopped
 ```
 
-**Dash:** http://redbox.ts.net:19999  
+**Dash:** <http://redbox.bombay-porgy.ts.net:19999>  
 **Tip:** Add “Cloud Aggregation Node” on whitebox to centralize metrics from all nodes.  
 
 ---
@@ -125,6 +134,7 @@ netdata:
 ## 7.5 🎞️ Tautulli (Plex Analytics)
 
 ### Compose on redbox
+
 ```yaml
 tautulli:
   image: lscr.io/linuxserver/tautulli:latest
@@ -139,6 +149,7 @@ tautulli:
     - "8181:8181"
   restart: unless-stopped
 ```
+
 Connect to your Plex server via API token for detailed user and play stats.  
 
 ---
@@ -155,6 +166,7 @@ Connect to your Plex server via API token for detailed user and play stats.
 ---
 
 ## 7.7 🧠 Maintenance Checklist
+
 - [ ] Update all monitoring containers monthly.  
 - [ ] Test alert triggers via mock failures.  
 - [ ] Review logs weekly (`docker logs --tail 100`).  
@@ -164,9 +176,10 @@ Connect to your Plex server via API token for detailed user and play stats.
 ---
 
 ## 7.8 ⚙️ Quick Command Cheat-Sheet
+
 ```bash
 # View container status
-docker ps --format "table {{.Names}}	{{.Status}}	{{.Ports}}"
+docker ps --format "table {{.Names}} {{.Status}} {{.Ports}}"
 
 # Stream Uptime Kuma logs
 docker logs -f uptimekuma

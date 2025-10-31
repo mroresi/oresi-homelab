@@ -88,7 +88,7 @@ jobs:
 
       - name: Health check ChatOps service
         run: |
-          if ! curl -fsS --connect-timeout 10 http://whitebox.ts.net:8000/healthz; then
+          if ! curl -fsS --connect-timeout 10 http://whitebox.bombay-porgy.ts.net:8000/healthz; then
             echo "❌ ChatOps service is not healthy"
             exit 1
           fi
@@ -114,7 +114,7 @@ jobs:
 
           echo "🚀 Triggering ChatOps: $INTENT"
 
-          response=$(curl -X POST http://whitebox.ts.net:8000/run \
+          response=$(curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
             -H "X-API-Key: $CHATOPS_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"name\": \"$INTENT\"}" \

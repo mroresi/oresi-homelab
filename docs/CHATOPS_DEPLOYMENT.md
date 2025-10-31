@@ -2,7 +2,7 @@
 
 ## Overview
 
-Deploy ChatOps service to `whitebox.ts.net` (192.168.0.102) as a systemd service accessible via Tailscale.
+Deploy ChatOps service to `whitebox.bombay-porgy.ts.net` (192.168.0.102) as a systemd service accessible via Tailscale.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Deploy ChatOps service to `whitebox.ts.net` (192.168.0.102) as a systemd service
 ### 1. Clone repository
 
 ```bash
-ssh whitebox.ts.net
+ssh whitebox.bombay-porgy.ts.net
 cd /opt
 sudo git clone https://github.com/mroresi/oresi-homelab.git
 cd oresi-homelab
@@ -98,7 +98,7 @@ sudo systemctl status chatops.service
 curl -fsS http://localhost:8000/healthz
 
 # Tailscale check
-curl -fsS http://whitebox.ts.net:8000/healthz
+curl -fsS http://whitebox.bombay-porgy.ts.net:8000/healthz
 ```
 
 ## Tailscale ACL Configuration
@@ -143,13 +143,13 @@ export CHATOPS_API_KEY="your-key-here"
 curl http://whitebox.ts.net:8000/healthz
 
 # Execute intent (scale)
-curl -X POST http://whitebox.ts.net:8000/run \
+curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
   -H "X-API-Key: $CHATOPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "scale_stack_media"}'
 
 # Execute intent (rollout)
-curl -X POST http://whitebox.ts.net:8000/run \
+curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
   -H "X-API-Key: $CHATOPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "rollout_stack_ai"}'
@@ -200,7 +200,7 @@ Import the preconfigured monitor:
 Or create manually:
 
 - **Type**: HTTP(s)
-- **URL**: `http://whitebox.ts.net:8000/healthz`
+- **URL**: `http://whitebox.bombay-porgy.ts.net:8000/healthz`
 - **Interval**: 60 seconds
 - **Accepted status codes**: 200
 - **Keyword**: `ok`
