@@ -162,7 +162,7 @@ jobs:
 
           if [ -f response.json ]; then
             echo "📄 Response:"
-            cat response.json | jq . || cat response.json
+            jq . response.json || cat response.json
           fi
 
           if [ "$http_code" -ne 200 ]; then

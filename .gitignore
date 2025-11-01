@@ -26,3 +26,4 @@ htmlcov/
 
 # Containers
 *.log
+actionlint
