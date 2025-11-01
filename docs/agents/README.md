@@ -90,3 +90,17 @@ for phase in [01..09]:
 ---
 
 **Status**: Infrastructure in progress. Phases will be created as the homelab evolves.
+
+## Bundle Layout
+
+When using the Gemini supervisor bundle as a drop-in package, these directories work together:
+
+- `docs/policies/` — scoring rubric and guardrails used by the AI reviewer.
+- `docs/prompts/` — prompts for reviewer, planner, and post-deploy analyst.
+- `scripts/` — helper utilities for metrics, drift checks, redaction, and Dockge rollout.
+- `reports/` — nightly JSON/YAML outputs (kept in Git as artifacts or ignored).
+- `.github/workflows/` — CI gates for PR review, pre-release, post-deploy, and nightly reflection.
+- `chatops/` — optional FastAPI microservice to execute approved intents.
+
+> No secrets should be committed; configure API keys and SSH credentials via CI secrets.
+
