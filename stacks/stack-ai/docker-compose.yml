@@ -2,15 +2,15 @@ version: '3.8'
 
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.1.32
     container_name: ollama
     restart: unless-stopped
     ports:
       - "11434:11434"
     volumes:
-      - /srv/ai_data/ollama:/root/.ollama
+      - /srv/ai_data/ollama:/root/.ollama:ro # Change to ':rw' if Ollama needs write access
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_HOST=127.0.0.1
     deploy:
       resources:
         reservations:
@@ -29,7 +29,7 @@ services:
       - ai-network
 
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.2.10
     container_name: openwebui
     restart: unless-stopped
     ports:
@@ -38,7 +38,7 @@ services:
       - /srv/ai_data/openwebui:/app/backend/data
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change-me-in-production}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
       - WEBUI_AUTH=true
     depends_on:
       ollama:
@@ -53,7 +53,7 @@ services:
       - ai-network
 
   stable-diffusion:
-    image: stabilityai/stable-diffusion-webui:latest
+    image: stabilityai/stable-diffusion-webui:v1.6.0
     container_name: stable-diffusion
     restart: unless-stopped
     ports:
@@ -62,7 +62,8 @@ services:
       - /srv/ai_data/stable-diffusion/models:/models
       - /srv/ai_data/stable-diffusion/outputs:/outputs
     environment:
-      - COMMANDLINE_ARGS=--listen --api --xformers --enable-insecure-extension-access --skip-torch-cuda-test --precision full --no-half
+      - COMMANDLINE_ARGS=--listen 127.0.0.1 --api --xformers --skip-torch-cuda-test --precision full --no-half
+      - SD_WEBUI_AUTH=your_secure_password
     deploy:
       resources:
         reservations:
