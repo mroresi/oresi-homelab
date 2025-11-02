@@ -10,7 +10,7 @@ services:
     volumes:
       - /srv/ai_data/ollama:/root/.ollama:ro # Change to ':rw' if Ollama needs write access
     environment:
-      - OLLAMA_HOST=127.0.0.1
+      - OLLAMA_HOST=0.0.0.0
     deploy:
       resources:
         reservations:
