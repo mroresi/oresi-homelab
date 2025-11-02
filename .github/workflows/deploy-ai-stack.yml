@@ -1,0 +1,628 @@
+name: Deploy AI Stackname: Deploy AI Stack
+
+
+
+on:on:
+
+  push:  push:
+
+    branches: [main]    branches: [main]
+
+    paths:    paths:
+
+      - "stacks/stack-ai/**"      - "stacks/stack-ai/**"
+
+      - "chatops/intents/rollout_stack_ai.yaml"      - "chatops/intents/rollout_stack_ai.yaml"
+
+      - "chatops/intents/scale_stack_ai.yaml"      - "chatops/intents/scale_stack_ai.yaml"
+
+
+
+  workflow_dispatch:  workflow_dispatch:
+
+    inputs:    inputs:
+
+      intent:      intent:
+
+        description: "Intent to execute"        description: "Intent to execute"
+
+        required: true        required: true
+
+        default: "rollout_stack_ai"        default: "rollout_stack_ai"
+
+        type: choice        type: choice
+
+        options:        options:
+
+          - rollout_stack_ai          - rollout_stack_ai
+
+          - scale_stack_ai          - scale_stack_ai
+
+
+
+jobs:jobs:
+
+  validate:  validate:
+
+    runs-on: ubuntu-latest    runs-on: ubuntu-latest
+
+    steps:    steps:
+
+      - uses: actions/checkout@v4      - uses: actions/checkout@v4
+
+
+
+      - name: Validate stack configuration      - name: Validate stack configuration
+
+        run: |        run: |
+
+          # Skip validation on manual dispatch (stacks may live outside this repo)          # Skip validation on manual dispatch (stacks may live outside this repo)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+
+            echo "ℹ️  Skipping stack validation on manual dispatch"            echo "ℹ️  Skipping stack validation on manual dispatch"
+
+            exit 0            exit 0
+
+          fi          fi
+
+
+
+          if [ ! -f "stacks/stack-ai/docker-compose.yml" ]; then          if [ ! -f "stacks/stack-ai/docker-compose.yml" ]; then
+
+            echo "ℹ️  stacks/stack-ai/docker-compose.yml not found in repo; skipping validation"            echo "❌ docker-compose.yml not found"
+
+            exit 0            exit 1
+
+          fi          fi
+
+
+
+          # Basic YAML syntax check          # Basic YAML syntax check
+
+          python3 -c "import yaml; yaml.safe_load(open('stacks/stack-ai/docker-compose.yml'))"          python3 -c "import yaml; yaml.safe_load(open('stacks/stack-ai/docker-compose.yml'))"
+
+          echo "✅ Stack configuration is valid"          echo "✅ Stack configuration is valid"
+
+
+
+      - name: Check GPU requirements      - name: Check GPU requirements
+
+        run: |        run: |
+
+          echo "🔍 Checking AI stack GPU requirements..."          echo "🔍 Checking AI stack GPU requirements..."
+
+          if grep -q "runtime: nvidia" stacks/stack-ai/docker-compose.yml; then          if grep -q "runtime: nvidia" stacks/stack-ai/docker-compose.yml; then
+
+            echo "✅ NVIDIA runtime configured"            echo "✅ NVIDIA runtime configured"
+
+          fi          fi
+
+
+
+          if grep -q "device_ids" stacks/stack-ai/docker-compose.yml; then          if grep -q "device_ids" stacks/stack-ai/docker-compose.yml; then
+
+            echo "✅ GPU device IDs specified"            echo "✅ GPU device IDs specified"
+
+          fi          fi
+
+
+
+  deploy:  deploy:
+
+    needs: validate    needs: validate
+
+    runs-on: ubuntu-latest    runs-on: ubuntu-latest
+
+    steps:    steps:
+
+      - uses: actions/checkout@v4      - uses: actions/checkout@v4
+
+
+
+      - name: Verify Tailscale credentials presence      - name: Verify Tailscale credentials presence
+
+        env:        env:
+
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+
+          TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}          TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+        run: |        run: |
+
+          have_oauth=0          have_oauth=0
+
+          if [ -n "$TS_OAUTH_CLIENT_ID" ] && [ -n "$TS_OAUTH_CLIENT_SECRET" ]; then have_oauth=1; fi          if [ -n "$TS_OAUTH_CLIENT_ID" ] && [ -n "$TS_OAUTH_CLIENT_SECRET" ]; then have_oauth=1; fi
+
+          have_authkey=0          have_authkey=0
+
+          if [ -n "$TAILSCALE_AUTHKEY" ]; then have_authkey=1; fi          if [ -n "$TAILSCALE_AUTHKEY" ]; then have_authkey=1; fi
+
+
+
+          if [ "$have_oauth" -eq 0 ] && [ "$have_authkey" -eq 0 ]; then          if [ "$have_oauth" -eq 0 ] && [ "$have_authkey" -eq 0 ]; then
+
+            echo "❌ No Tailscale credentials provided. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2            echo "❌ No Tailscale credentials provided. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2
+
+            exit 1            exit 1
+
+          fi          fi
+
+          if [ "$have_oauth" -eq 1 ]; then echo "✅ OAuth client detected"; fi          if [ "$have_oauth" -eq 1 ]; then echo "✅ OAuth client detected"; fi
+
+          if [ "$have_authkey" -eq 1 ]; then echo "✅ Auth key detected (fallback available)"; fi          if [ "$have_authkey" -eq 1 ]; then echo "✅ Auth key detected (fallback available)"; fi
+
+
+
+      - name: Detect Tailscale credentials      - name: Detect Tailscale credentials
+
+        id: tscreds        id: tscreds
+
+        env:        env:
+
+          TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}          TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+
+          TS_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}          TS_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+
+          TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}          TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+        run: |        run: |
+
+          have_oauth=0          have_oauth=0
+
+          if [ -n "$TS_ID" ] && [ -n "$TS_SECRET" ]; then have_oauth=1; fi          if [ -n "$TS_ID" ] && [ -n "$TS_SECRET" ]; then have_oauth=1; fi
+
+          have_authkey=0          have_authkey=0
+
+          if [ -n "$TS_AUTHKEY" ]; then have_authkey=1; fi          if [ -n "$TS_AUTHKEY" ]; then have_authkey=1; fi
+
+          echo "have_oauth=$have_oauth" >> "$GITHUB_OUTPUT"          echo "have_oauth=$have_oauth" >> "$GITHUB_OUTPUT"
+
+          echo "have_authkey=$have_authkey" >> "$GITHUB_OUTPUT"          echo "have_authkey=$have_authkey" >> "$GITHUB_OUTPUT"
+
+
+
+      - name: Install Tailscale (OAuth)      - name: Install Tailscale (OAuth)
+
+        if: ${{ steps.tscreds.outputs.have_oauth == '1' }}        if: ${{ steps.tscreds.outputs.have_oauth == '1' }}
+
+        id: tsoauth        id: tsoauth
+
+        continue-on-error: true        continue-on-error: true
+
+        uses: tailscale/github-action@v2        uses: tailscale/github-action@v2
+
+        with:        with:
+
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+
+
+
+      - name: Install Tailscale (Authkey fallback)      - name: Install Tailscale (Authkey fallback)
+
+        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey == '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey == '1') }}        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey == '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey == '1') }}
+
+        uses: tailscale/github-action@v2        uses: tailscale/github-action@v2
+
+        with:        with:
+
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+
+
+      - name: Require Tailscale credentials      - name: Require Tailscale credentials
+
+        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey != '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey != '1') }}        if: ${{ (steps.tscreds.outputs.have_oauth != '1' && steps.tscreds.outputs.have_authkey != '1') || (steps.tsoauth.outcome == 'failure' && steps.tscreds.outputs.have_authkey != '1') }}
+
+        run: |        run: |
+
+          printf "❌ Missing Tailscale credentials. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)\n" >&2          echo "❌ Missing Tailscale credentials. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2
+
+          exit 1          exit 1
+
+
+
+      - name: Wait for Tailscale connection      - name: Wait for Tailscale connection
+
+        run: |        run: |
+
+          echo "Waiting for Tailscale mesh connection..."          echo "Waiting for Tailscale mesh connection..."
+
+          timeout=30          timeout=30
+
+          elapsed=0          elapsed=0
+
+
+
+          until tailscale status | grep -q "whitebox"; do          until tailscale status | grep -q "whitebox"; do
+
+            if [ "$elapsed" -ge "$timeout" ]; then            if [ "$elapsed" -ge "$timeout" ]; then
+
+              echo "❌ Timeout waiting for Tailscale connection"              echo "❌ Timeout waiting for Tailscale connection"
+
+              tailscale status              tailscale status
+
+              exit 1              exit 1
+
+            fi            fi
+
+            echo "Waiting... ($elapsed/$timeout seconds)"            echo "Waiting... ($elapsed/$timeout seconds)"
+
+            sleep 2            sleep 2
+
+            elapsed=$((elapsed + 2))            elapsed=$((elapsed + 2))
+
+          done          done
+
+
+
+          echo "✅ Tailscale connected"          echo "✅ Tailscale connected"
+
+          tailscale status          tailscale status
+
+
+
+      - name: Health check ChatOps service      - name: Health check ChatOps service
+
+        run: |        run: |
+
+          set -e          set -e
+
+          echo "🔎 Resolving whitebox via Tailscale DNS..."          echo "🔎 Resolving whitebox via Tailscale DNS..."
+
+          getent hosts whitebox.bombay-porgy.ts.net || true          getent hosts whitebox.bombay-porgy.ts.net || true
+
+          echo "🔎 Tailscale status (summary):"          echo "🔎 Tailscale status (summary):"
+
+          tailscale status || true          tailscale status || true
+
+
+
+          echo "🔎 Pinging whitebox over Tailscale..."          echo "🔎 Pinging whitebox over Tailscale..."
+
+          tailscale ping -c 3 whitebox.bombay-porgy.ts.net || true          tailscale ping -c 3 whitebox.bombay-porgy.ts.net || true
+
+
+
+          echo "🔎 Probing ChatOps /healthz with retries..."          echo "🔎 Probing ChatOps /healthz with retries..."
+
+          url="http://whitebox.bombay-porgy.ts.net:8000/healthz"          url="http://whitebox.bombay-porgy.ts.net:8000/healthz"
+
+          for i in $(seq 1 10); do          for i in $(seq 1 10); do
+
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" || echo 000)            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" || echo 000)
+
+            echo "Attempt $i: HTTP $code"            echo "Attempt $i: HTTP $code"
+
+            if [ "$code" = "200" ]; then            if [ "$code" = "200" ]; then
+
+              echo "✅ ChatOps service is healthy"              echo "✅ ChatOps service is healthy"
+
+              exit 0              exit 0
+
+            fi            fi
+
+            sleep 3            sleep 3
+
+          done          done
+
+          echo "❌ ChatOps service is not reachable/healthy at $url"          echo "❌ ChatOps service is not reachable/healthy at $url"
+
+          echo "ℹ️  Check ChatOps on whitebox: systemctl status chatops.service (or docker ps)"          echo "ℹ️  Check ChatOps on whitebox: systemctl status chatops.service (or docker ps)"
+
+          exit 1          exit 1
+
+
+
+      - name: Determine intent      - name: Determine intent
+
+        id: intent        id: intent
+
+        run: |        run: |
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+
+            INTENT="${{ github.event.inputs.intent }}"            INTENT="${{ github.event.inputs.intent }}"
+
+          else          else
+
+            INTENT="rollout_stack_ai"            INTENT="rollout_stack_ai"
+
+          fi          fi
+
+          echo "intent=$INTENT" >> "$GITHUB_OUTPUT"          echo "intent=$INTENT" >> "$GITHUB_OUTPUT"
+
+          echo "📋 Will execute intent: $INTENT"          echo "📋 Will execute intent: $INTENT"
+
+
+
+      - name: Pre-deploy GPU check      - name: Pre-deploy GPU check
+
+        run: |        run: |
+
+          echo "🎮 Verifying GPU availability on target node..."          echo "🎮 Verifying GPU availability on target node..."
+
+          # Note: This would require SSH access or API call to Proxmox          # Note: This would require SSH access or API call to Proxmox
+
+          echo "⚠️  Manual verification recommended for GPU passthrough"          echo "⚠️  Manual verification recommended for GPU passthrough"
+
+
+
+      - name: Trigger ChatOps deployment      - name: Trigger ChatOps deployment
+
+        id: deploy        id: deploy
+
+        env:        env:
+
+          CHATOPS_API_KEY: ${{ secrets.CHATOPS_API_KEY }}          CHATOPS_API_KEY: ${{ secrets.CHATOPS_API_KEY }}
+
+        run: |        run: |
+
+          INTENT="${{ steps.intent.outputs.intent }}"          INTENT="${{ steps.intent.outputs.intent }}"
+
+
+
+          echo "🚀 Triggering ChatOps: $INTENT"          echo "🚀 Triggering ChatOps: $INTENT"
+
+
+
+          response=$(curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \          response=$(curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
+
+            -H "X-API-Key: $CHATOPS_API_KEY" \            -H "X-API-Key: $CHATOPS_API_KEY" \
+
+            -H "Content-Type: application/json" \            -H "Content-Type: application/json" \
+
+            -d "{\"name\": \"$INTENT\"}" \            -d "{\"name\": \"$INTENT\"}" \
+
+            -w "\n%{http_code}" \            -w "\n%{http_code}" \
+
+            -s -o response.json)            -s -o response.json)
+
+
+
+          http_code=$(echo "$response" | tail -n1)          http_code=$(echo "$response" | tail -n1)
+
+
+
+          echo "📊 HTTP Status: $http_code"          echo "📊 HTTP Status: $http_code"
+
+
+
+          if [ -f response.json ]; then          if [ -f response.json ]; then
+
+            echo "📄 Response:"            echo "📄 Response:"
+
+            cat response.json | jq . || cat response.json            cat response.json | jq . || cat response.json
+
+          fi          fi
+
+
+
+          if [ "$http_code" -ne 200 ]; then          if [ "$http_code" -ne 200 ]; then
+
+            echo "❌ ChatOps deployment failed with status $http_code"            echo "❌ ChatOps deployment failed with status $http_code"
+
+            exit 1            exit 1
+
+          fi          fi
+
+
+
+          echo "✅ ChatOps deployment triggered successfully"          echo "✅ ChatOps deployment triggered successfully"
+
+
+
+      - name: Wait for AI services stabilization      - name: Wait for AI services stabilization
+
+        run: |        run: |
+
+          echo "⏳ Waiting 60 seconds for AI containers to stabilize (model loading)..."          echo "⏳ Waiting 60 seconds for AI containers to stabilize (model loading)..."
+
+          sleep 60          sleep 60
+
+
+
+      - name: Post-deploy validation      - name: Post-deploy validation
+
+        run: |        run: |
+
+          echo "🔍 Validating deployed AI services..."          echo "🔍 Validating deployed AI services..."
+
+
+
+          # Check Ollama API          # Check Ollama API
+
+          if ! curl -fsS --connect-timeout 10 http://192.168.0.102:11434/api/tags > /dev/null 2>&1; then          if ! curl -fsS --connect-timeout 10 http://192.168.0.102:11434/api/tags > /dev/null 2>&1; then
+
+            echo "⚠️  Ollama API check failed (may still be loading models)"            echo "⚠️  Ollama API check failed (may still be loading models)"
+
+          else          else
+
+            echo "✅ Ollama is responding"            echo "✅ Ollama is responding"
+
+            curl -s http://192.168.0.102:11434/api/tags | jq '.models[].name' || true            curl -s http://192.168.0.102:11434/api/tags | jq '.models[].name' || true
+
+          fi          fi
+
+
+
+          # Check GPU utilization (if nvidia-smi accessible)          # Check GPU utilization (if nvidia-smi accessible)
+
+          echo "📊 Note: Check GPU utilization via Proxmox console or nvidia-smi"          echo "📊 Note: Check GPU utilization via Proxmox console or nvidia-smi"
+
+
+
+          echo "✅ Post-deploy validation complete"          echo "✅ Post-deploy validation complete"
+
+          echo "📊 Verify via monitoring dashboards"          echo "📊 Verify via monitoring dashboards"
+
+
+
+      - name: Notify success      - name: Notify success
+
+        if: success()        if: success()
+
+        run: |        run: |
+
+          echo "🎉 AI Stack deployment successful!"          echo "🎉 AI Stack deployment successful!"
+
+          echo "Stack: stack-ai"          echo "Stack: stack-ai"
+
+          echo "Intent: ${{ steps.intent.outputs.intent }}"          echo "Intent: ${{ steps.intent.outputs.intent }}"
+
+          echo "Commit: ${{ github.sha }}"          echo "Commit: ${{ github.sha }}"
+
+          echo "Triggered by: ${{ github.actor }}"          echo "Triggered by: ${{ github.actor }}"
+
+          echo ""          echo ""
+
+          echo "📝 Post-deployment checklist:"          echo "📝 Post-deployment checklist:"
+
+          echo "- [ ] Verify Ollama responds at :11434"          echo "- [ ] Verify Ollama responds at :11434"
+
+          echo "- [ ] Check GPU passthrough working (nvidia-smi)"          echo "- [ ] Check GPU passthrough working (nvidia-smi)"
+
+          echo "- [ ] Test model inference"          echo "- [ ] Test model inference"
+
+          echo "- [ ] Verify disk usage under threshold"          echo "- [ ] Verify disk usage under threshold"
+
+
+
+      - name: Notify failure      - name: Notify failure
+
+        if: failure()        if: failure()
+
+        run: |        run: |
+
+          echo "❌ AI Stack deployment failed!"          echo "❌ AI Stack deployment failed!"
+
+          echo "Check logs above for details"          echo "Check logs above for details"
+
+          echo "Common issues:"          echo "Common issues:"
+
+          echo "- GPU passthrough not configured"          echo "- GPU passthrough not configured"
+
+          echo "- Insufficient VRAM"          echo "- Insufficient VRAM"
+
+          echo "- Model files missing"          echo "- Model files missing"
+
+          echo "- NFS mount issues (/srv/ai_data)"          echo "- NFS mount issues (/srv/ai_data)"
+
+
+
+  notify-discord:  notify-discord:
+
+    needs: [validate, deploy]    needs: [validate, deploy]
+
+    runs-on: ubuntu-latest    runs-on: ubuntu-latest
+
+    if: always()    if: always()
+
+    steps:    steps:
+
+      - name: Send Discord notification      - name: Send Discord notification
+
+        env:        env:
+
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}          DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+
+        run: |        run: |
+
+          if [ -z "$DISCORD_WEBHOOK" ]; then          if [ -z "$DISCORD_WEBHOOK" ]; then
+
+            echo "ℹ️  Discord webhook not configured, skipping notification"            echo "ℹ️  Discord webhook not configured, skipping notification"
+
+            exit 0            exit 0
+
+          fi          fi
+
+
+
+          if [ "${{ needs.deploy.result }}" = "success" ]; then          if [ "${{ needs.deploy.result }}" = "success" ]; then
+
+            COLOR=5814783  # Purple (AI theme)            COLOR=5814783  # Purple (AI theme)
+
+            TITLE="🤖 AI Stack Deployed"            TITLE="🤖 AI Stack Deployed"
+
+            DESC="Successfully deployed stack-ai with GPU support"            DESC="Successfully deployed stack-ai with GPU support"
+
+          else          else
+
+            COLOR=15158332  # Red            COLOR=15158332  # Red
+
+            TITLE="❌ AI Stack Deployment Failed"            TITLE="❌ AI Stack Deployment Failed"
+
+            DESC="Deployment failed. Check GitHub Actions logs for details."            DESC="Deployment failed. Check GitHub Actions logs for details."
+
+          fi          fi
+
+
+
+          COMMIT="`${{ github.sha }}`"          COMMIT="\`${{ github.sha }}\`"
+
+          ACTOR="${{ github.actor }}"          ACTOR="${{ github.actor }}"
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+
+
+          # Build payload with jq to avoid YAML parsing confusion          # Build payload with jq to avoid YAML parsing confusion
+
+          jq -n \          jq -n \
+
+            --arg title "$TITLE" \            --arg title "$TITLE" \
+
+            --arg desc "$DESC" \            --arg desc "$DESC" \
+
+            --arg commit "$COMMIT" \            --arg commit "$COMMIT" \
+
+            --arg actor "$ACTOR" \            --arg actor "$ACTOR" \
+
+            --arg url "$RUN_URL" \            --arg url "$RUN_URL" \
+
+            --arg services "Ollama, OpenWebUI, Stable Diffusion" \            --arg services "Ollama, OpenWebUI, Stable Diffusion" \
+
+            --argjson color "$COLOR" \            --argjson color "$COLOR" \
+
+            '{            '{
+
+              embeds: [              embeds: [
+
+                {                {
+
+                  title: $title,                  title: $title,
+
+                  description: $desc,                  description: $desc,
+
+                  color: $color,                  color: $color,
+
+                  fields: [                  fields: [
+
+                    {name: "Services", value: $services, inline: true},                    {name: "Services", value: $services, inline: true},
+
+                    {name: "Commit", value: $commit, inline: true},                    {name: "Commit", value: $commit, inline: true},
+
+                    {name: "Actor", value: $actor, inline: true}                    {name: "Actor", value: $actor, inline: true}
+
+                  ],                  ],
+
+                  url: $url                  url: $url
+
+                }                }
+
+              ]              ]
+
+            }' > payload.json            }' > payload.json
+
+
+
+          curl -sS -X POST "$DISCORD_WEBHOOK" \          curl -sS -X POST "$DISCORD_WEBHOOK" \
+
+            -H "Content-Type: application/json" \            -H "Content-Type: application/json" \
+
+            --data @payload.json            --data @payload.json
+
