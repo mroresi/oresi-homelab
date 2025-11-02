@@ -62,8 +62,7 @@ services:
       - /srv/ai_data/stable-diffusion/models:/models
       - /srv/ai_data/stable-diffusion/outputs:/outputs
     environment:
-      - CLI_ARGS=--listen --api --xformers --enable-insecure-extension-access
-      - COMMANDLINE_ARGS=--skip-torch-cuda-test --precision full --no-half
+      - COMMANDLINE_ARGS=--listen --api --xformers --enable-insecure-extension-access --skip-torch-cuda-test --precision full --no-half
     deploy:
       resources:
         reservations:
