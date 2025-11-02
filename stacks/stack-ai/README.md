@@ -38,13 +38,13 @@ docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
 ### Via ChatOps (Recommended)
 ```bash
 # Rollout/update the stack
-curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
+curl -X POST https://whitebox.bombay-porgy.ts.net:8000/run \
   -H "X-API-Key: $CHATOPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "rollout_stack_ai"}'
 
 # Scale Ollama for increased load
-curl -X POST http://whitebox.bombay-porgy.ts.net:8000/run \
+curl -X POST https://whitebox.bombay-porgy.ts.net:8000/run \
   -H "X-API-Key: $CHATOPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "scale_stack_ai"}'
@@ -64,8 +64,11 @@ docker-compose up -d
 # Ollama API
 curl http://localhost:11434/api/tags
 
-# OpenWebUI
+# OpenWebUI (from host)
 curl http://localhost:3000/health
+
+# OpenWebUI (from inside the container)
+docker exec openwebui curl http://localhost:8080/health
 
 # Stable Diffusion
 curl http://localhost:7860/
