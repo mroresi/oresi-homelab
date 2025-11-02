@@ -8,7 +8,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - /srv/ai_data/ollama:/root/.ollama:ro # Change to ':rw' if Ollama needs write access
+      - /srv/ai_data/ollama:/root/.ollama:rw # Changed to ':rw' to allow Ollama write access
     environment:
       - OLLAMA_HOST=0.0.0.0
     deploy:
