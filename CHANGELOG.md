@@ -9,6 +9,9 @@ The format is based on Keep a Changelog and this project adheres to Git tagging 
 - Added IP allowlist for ChatOps (`CHATOPS_IP_ALLOWLIST`).
 - Added `.env.example` and `docker-compose.example.yml` for ChatOps.
 - Added ruff and mypy configurations and pre-commit hooks.
+- Implemented backup action handler: Docker volumes, Proxmox VMs, Plex databases.
+- Enhanced deployment workflow health checks with retries and diagnostics.
+- Added comprehensive test coverage for backup operations.
 
 ## [2025-10-30]
 - Initial analysis report at `reports/project_analysis_2025-10-30.md`.

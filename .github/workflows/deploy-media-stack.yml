@@ -59,12 +59,12 @@ jobs:
           have_authkey=0
           if [ -n "$TAILSCALE_AUTHKEY" ]; then have_authkey=1; fi
 
-          if [ $have_oauth -eq 0 ] && [ $have_authkey -eq 0 ]; then
+          if [ "$have_oauth" -eq 0 ] && [ "$have_authkey" -eq 0 ]; then
             echo "❌ No Tailscale credentials provided. Configure either:\n- TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET (recommended)\n- or TAILSCALE_AUTHKEY (fallback)" >&2
             exit 1
           fi
-          if [ $have_oauth -eq 1 ]; then echo "✅ OAuth client detected"; fi
-          if [ $have_authkey -eq 1 ]; then echo "✅ Auth key detected (fallback available)"; fi
+          if [ "$have_oauth" -eq 1 ]; then echo "✅ OAuth client detected"; fi
+          if [ "$have_authkey" -eq 1 ]; then echo "✅ Auth key detected (fallback available)"; fi
 
       - name: Detect Tailscale credentials
         id: tscreds
@@ -77,8 +77,8 @@ jobs:
           if [ -n "$TS_ID" ] && [ -n "$TS_SECRET" ]; then have_oauth=1; fi
           have_authkey=0
           if [ -n "$TS_AUTHKEY" ]; then have_authkey=1; fi
-          echo "have_oauth=$have_oauth" >> $GITHUB_OUTPUT
-          echo "have_authkey=$have_authkey" >> $GITHUB_OUTPUT
+          echo "have_oauth=$have_oauth" >> "$GITHUB_OUTPUT"
+          echo "have_authkey=$have_authkey" >> "$GITHUB_OUTPUT"
 
       - name: Install Tailscale (OAuth)
         if: ${{ steps.tscreds.outputs.have_oauth == '1' }}
@@ -108,7 +108,7 @@ jobs:
           elapsed=0
 
           until tailscale status | grep -q "whitebox"; do
-            if [ $elapsed -ge $timeout ]; then
+            if [ "$elapsed" -ge "$timeout" ]; then
               echo "❌ Timeout waiting for Tailscale connection"
               tailscale status
               exit 1
@@ -123,11 +123,29 @@ jobs:
 
       - name: Health check ChatOps service
         run: |
-          if ! curl -fsS --connect-timeout 10 http://whitebox.bombay-porgy.ts.net:8000/healthz; then
-            echo "❌ ChatOps service is not healthy"
-            exit 1
-          fi
-          echo "✅ ChatOps service is healthy"
+          set -e
+          echo "🔎 Resolving whitebox via Tailscale DNS..."
+          getent hosts whitebox.bombay-porgy.ts.net || true
+          echo "🔎 Tailscale status (summary):"
+          tailscale status || true
+
+          echo "🔎 Pinging whitebox over Tailscale..."
+          tailscale ping -c 3 whitebox.bombay-porgy.ts.net || true
+
+          echo "🔎 Probing ChatOps /healthz with retries..."
+          url="http://whitebox.bombay-porgy.ts.net:8000/healthz"
+          for i in $(seq 1 10); do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" || echo 000)
+            echo "Attempt $i: HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ ChatOps service is healthy"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "❌ ChatOps service is not reachable/healthy at $url"
+          echo "ℹ️  Check ChatOps on whitebox: systemctl status chatops.service (or docker ps)"
+          exit 1
 
       - name: Determine intent
         id: intent
@@ -137,7 +155,7 @@ jobs:
           else
             INTENT="rollout_stack_media"
           fi
-          echo "intent=$INTENT" >> $GITHUB_OUTPUT
+          echo "intent=$INTENT" >> "$GITHUB_OUTPUT"
           echo "📋 Will execute intent: $INTENT"
 
       - name: Trigger ChatOps deployment

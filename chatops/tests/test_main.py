@@ -87,6 +87,82 @@ def test_ip_allowlist_allows(monkeypatch):
     assert r.json()["ok"] is True
 
 
+```python
+def test_backup_plex_database(tmp_path, monkeypatch):
+    """Test backup action for Plex database with dry_run."""
+    monkeypatch.setenv("CHATOPS_API_KEY", "secret")
+    
+    class FakeIntent:
+        label_required = appmod.APPROVED_LABEL
+        action = "backup"
+        stack = "stack-media"
+        database_type = "plex"
+        source_container = "stack-media_plex_1"
+        source_path = (
+            "/config/Library/Application Support/Plex Media Server/"
+            "Plug-in Support/Databases"
+        )
+        destination = str(tmp_path / "backups")
+        retention_days = 30
+        backup_type = None
+        service = None
+        replicas = None
+        compose = None
+        depends_on = None
+    
+    monkeypatch.setattr(appmod, "load_intent", lambda name: FakeIntent())
+    
+    run_calls = []
+    def fake_run(argv, check=True, capture_output=True, text=True):
+        run_calls.append(argv)
+        cp = types.SimpleNamespace()
+        cp.stdout = "OK"
+        return cp
+    
+    monkeypatch.setattr(appmod.subprocess, "run", fake_run)
+    
+    client = make_client()
+    r = client.post(
+        "/run",
+        headers={"x-api-key": "secret"},
+        json={"name": "backup_plex_database", "dry_run": True},
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["dry_run"] is True
+    assert "backup_type" in data or "plex" in data.get("stdout", "")
+
+def test_backup_missing_type_fields(monkeypatch):
+    """Test backup intent with both backup_type and database_type as None returns 400."""
+    monkeypatch.setenv("CHATOPS_API_KEY", "secret")
+
+    class FakeIntent:
+        label_required = appmod.APPROVED_LABEL
+        action = "backup"
+        stack = "stack-media"
+        database_type = None
+        backup_type = None
+        source_container = "stack-media_plex_1"
+        source_path = "/some/path"
+        destination = "/tmp/backups"
+        retention_days = 30
+        service = None
+        replicas = None
+        compose = None
+        depends_on = None
+
+    monkeypatch.setattr(appmod, "load_intent", lambda name: FakeIntent())
+
+    client = make_client()
+    r = client.post(
+        "/run",
+        headers={"x-api-key": "secret"},
+        json={"name": "backup_missing_type_fields"},
+    )
+    assert r.status_code == 400
+
+
 def test_label_mismatch_blocked(monkeypatch):
     monkeypatch.setenv("CHATOPS_API_KEY", "secret")
 

@@ -1,13 +1,13 @@
 # Backup Proxmox VM
 # Purpose: Trigger vzdump backup for specific VM to NAS storage
-# Stack: proxmox-backup
 # Reference: docs/09_Backup_Recovery.md
 # Note: Requires SSH key auth to Proxmox host or proxmox-backup-client installed
 
 label_required: approved-by-gemini
 action: backup
+backup_type: vm_proxmox
+stack: proxmox-backup
 vm_id: 100
-backup_type: snapshot  # snapshot or suspend or stop
 storage: synology-nfs
 compress: zstd
 notes: "Automated backup via ChatOps"

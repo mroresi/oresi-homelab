@@ -9,6 +9,7 @@ import re
 import secrets
 import subprocess
 import sys
+import tempfile
 import time
 from typing import TYPE_CHECKING, Any, List, Literal, Optional, cast
 
@@ -161,12 +162,29 @@ class MultiStackRequest(BaseModel):
 class Intent(BaseModel):
     # Minimal structured intent schema
     label_required: str = APPROVED_LABEL
-    action: Literal["scale", "rollout"]  # TODO: Add "backup" action support
+    action: Literal["scale", "rollout", "backup"]
     stack: str
     service: Optional[str] = None
     replicas: Optional[int] = None
     compose: Optional[str] = None  # override compose file path if needed
     depends_on: Optional[List[str]] = None  # Intent dependencies (execute these first)
+    
+    # Backup-specific fields (flexible schema to support different backup types)
+    backup_type: Optional[str] = None  # "docker_volumes", "vm_proxmox", "database", etc.
+    database_type: Optional[str] = None  # For database backups (e.g., "plex")
+    source: Optional[str] = None  # Backup source path
+    source_container: Optional[str] = None  # For container-based backups
+    source_path: Optional[str] = None  # Path inside container
+    destination: Optional[str] = None  # Backup destination path
+    destination_container: Optional[str] = None  # For container-based destinations
+    destination_path: Optional[str] = None  # Path inside destination container
+    exclude: Optional[List[str]] = None  # Patterns to exclude from backup
+    options: Optional[List[str]] = None  # Additional backup options
+    vm_id: Optional[int] = None  # For Proxmox VM backups
+    retention_days: Optional[int] = None  # Backup retention policy
+    storage: Optional[str] = None  # Storage destination name
+    compress: Optional[str] = None  # Compression type (e.g., "zstd", "gzip")
+    notes: Optional[str] = None  # Backup notes/description
 
 
 def _ensure_state_dir() -> None:
@@ -1020,6 +1038,100 @@ def _execute_single_intent(req: IntentRequest, request: Request, intent: Intent)
             "intent": req.name,
             "action": intent.action,
             "stack": intent.stack,
+            "dry_run": req.dry_run,
+        })
+        return result
+    elif intent.action == "backup":
+        # Backup action handler - supports multiple backup types
+        backup_stdout = ""
+        
+        if intent.backup_type == "docker_volumes":
+            # Rsync-based Docker volumes backup
+            if not intent.source or not intent.destination:
+                raise HTTPException(400, "docker_volumes backup requires source and destination")
+            
+            argv = ["rsync", "-av"]
+            if intent.exclude:
+                for pattern in intent.exclude:
+                    argv.extend(["--exclude", pattern])
+            if intent.options:
+                argv.extend(intent.options)
+            argv.extend([intent.source + "/", intent.destination + "/"])
+            
+            backup_stdout = run_argv(argv)
+            
+        elif intent.backup_type == "vm_proxmox":
+            # Proxmox VM backup using vzdump
+            if not intent.vm_id:
+                raise HTTPException(400, "vm_proxmox backup requires vm_id")
+            
+            argv = ["vzdump", str(intent.vm_id)]
+            if intent.storage:
+                argv.extend(["--storage", intent.storage])
+            if intent.compress:
+                argv.extend(["--compress", intent.compress])
+            if intent.notes:
+                argv.extend(["--notes-template", intent.notes])
+            
+            backup_stdout = run_argv(argv)
+            
+        elif intent.database_type == "plex":
+            # Plex database backup - copy from container
+            if not intent.source_container or not intent.source_path or not intent.destination:
+                raise HTTPException(
+                    400,
+                    "plex database backup requires source_container, source_path, and destination",
+                )
+            
+            # Ensure destination directory exists
+            os.makedirs(intent.destination, exist_ok=True)
+            
+            # Create backup with timestamp
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            backup_name = f"plex_db_backup_{timestamp}.tar.gz"
+            backup_path = os.path.join(intent.destination, backup_name)
+            
+            # Use docker cp to extract from container and tar
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Copy database directory from container
+                argv1 = ["docker", "cp", f"{intent.source_container}:{intent.source_path}", tmpdir]
+                run_argv(argv1)
+                
+                # Create compressed tar archive
+                argv2 = ["tar", "-czf", backup_path, "-C", tmpdir, "."]
+                backup_stdout = run_argv(argv2)
+                
+                # Clean up old backups if retention_days specified
+                if intent.retention_days:
+                    cutoff_time = time.time() - (intent.retention_days * 86400)
+                    try:
+                        for f in os.listdir(intent.destination):
+                            file_path = os.path.join(intent.destination, f)
+                            if os.path.isfile(file_path) and f.startswith("plex_db_backup_"):
+                                if os.path.getmtime(file_path) < cutoff_time:
+                                    os.remove(file_path)
+                                    logging.info("Deleted old backup: %s", f)
+                    except Exception as e:
+                        logging.warning("Failed to clean up old backups: %s", e)
+            
+        else:
+            unknown_type = intent.backup_type or intent.database_type
+            raise HTTPException(400, f"Unknown backup type: {unknown_type}")
+        
+        result = {
+            "ok": True,
+            "dry_run": req.dry_run,
+            "stdout": backup_stdout,
+            "intent": req.name,
+            "action": intent.action,
+            "backup_type": intent.backup_type or intent.database_type,
+        }
+        audit_log({
+            "event": "intent_succeeded",
+            "intent": req.name,
+            "action": intent.action,
+            "stack": intent.stack,
+            "backup_type": intent.backup_type or intent.database_type,
             "dry_run": req.dry_run,
         })
         return result
