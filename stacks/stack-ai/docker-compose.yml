@@ -63,7 +63,7 @@ services:
       - /srv/ai_data/stable-diffusion/outputs:/outputs
     environment:
       - COMMANDLINE_ARGS=--listen 127.0.0.1 --api --xformers --skip-torch-cuda-test --precision full --no-half
-      - SD_WEBUI_AUTH=your_secure_password
+      - SD_WEBUI_AUTH=${SD_WEBUI_AUTH}
     deploy:
       resources:
         reservations:
